@@ -243,7 +243,7 @@ void CMenuPlayerSetup::UpdateModel()
 
 	// seems we DON'T have this model locally
 	// just force display string and do nothing
-	if( !mdl )
+	if( !mdl || !(*mdl) )
 	{
 		model.ForceDisplayString( EngFuncs::GetCvarString( "model" ) );
 		return;
@@ -257,12 +257,20 @@ void CMenuPlayerSetup::UpdateModel()
 #endif
 	ApplyColorToImagePreview();
 	EngFuncs::CvarSetString( "model", mdl );
+
 	if( !strcmp( mdl, "player" ) )
+	{
 		strcpy( image, "models/player.mdl" );
+	}
 	else
+	{
 		snprintf( image, sizeof(image), "models/player/%s/%s.mdl", mdl, mdl );
+	}
+
 	if( view.ent )
+	{
 		EngFuncs::SetModel( view.ent, image );
+	}
 }
 
 void CMenuPlayerSetup::UpdateLogo()
@@ -285,8 +293,10 @@ void CMenuPlayerSetup::UpdateLogo()
 
 void CMenuPlayerSetup::ApplyColorToImagePreview()
 {
+#ifndef MENU_AFTERBURNER
 	EngFuncs::ProcessImage( view.hPlayerImage, -1,
 		topColor.GetCurrentValue(), bottomColor.GetCurrentValue() );
+#endif
 }
 
 void CMenuPlayerSetup::ApplyColorToLogoPreview()
@@ -357,7 +367,9 @@ void CMenuPlayerSetup::_Init( void )
 #endif
 
 	if( gMenu.m_gameinfo.flags & GFL_NOMODELS )
+	{
 		addFlags |= QMF_INACTIVE;
+	}
 
 	banner.SetPicture(ART_BANNER);
 
@@ -397,6 +409,12 @@ void CMenuPlayerSetup::_Init( void )
 	bottomColor.onChanged = VoidCb( &CMenuPlayerSetup::ApplyColorToImagePreview );;
 	bottomColor.SetCoord( 340, 590 );
 	bottomColor.size.w = 300;
+
+#ifdef MENU_AFTERBURNER
+	// These are weird and we don't support them.
+	topColor.iFlags |= QMF_INACTIVE;
+	bottomColor.iFlags |= QMF_INACTIVE;
+#endif
 
 	showModels.iFlags |= addFlags;
 	showModels.SetNameAndStatus( L( "Show 3D preview" ), L( "Show 3D player models instead of preview thumbnails" ) );
@@ -471,8 +489,10 @@ void CMenuPlayerSetup::_Init( void )
 
 	if( !(gMenu.m_gameinfo.flags & GFL_NOMODELS) )
 	{
+#ifndef MENU_AFTERBURNER
 		AddItem( topColor );
 		AddItem( bottomColor );
+#endif
 		AddItem( showModels );
 		AddItem( hiModels );
 		AddItem( model );
