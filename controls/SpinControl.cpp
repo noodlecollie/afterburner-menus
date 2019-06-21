@@ -316,6 +316,11 @@ void CMenuSpinControl::SetCurrentValue( const char *stringValue )
 		return;
 	}
 
+	if ( !m_pModel )
+	{
+		return;
+	}
+
 	int i = 0;
 
 	for( ; i <= (int)m_flMaxValue; i++ )
