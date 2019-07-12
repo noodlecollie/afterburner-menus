@@ -16,12 +16,19 @@ GNU General Public License for more details.
 #ifndef EXTDLL_H
 #define EXTDLL_H
 
+#ifndef XASH_DISABLE_FWGS_EXTENSIONS
+#include "xash3d_types.h"
+#endif
+
+#ifndef EXPORT
 #ifdef _WIN32
 #define EXPORT __declspec(dllexport)
+#elif defined(__GNUC__)
+#define EXPORT __attribute__((visibility("default")))
 #else
 #define EXPORT
 #endif
-
+#endif
 
 // shut-up compiler warnings
 #ifdef _MSC_VER
@@ -33,7 +40,7 @@ GNU General Public License for more details.
 #pragma warning(disable : 4520) // multiple default constructors specified
 #pragma warning(disable : 4996) // This function or variable may be unsafe
 // disable c++11 on old msvc
-#if _MSC_VER < 1800
+#if _MSC_VER < 1800 && !defined MY_COMPILER_SUCKS
 #define MY_COMPILER_SUCKS
 #endif
 #endif

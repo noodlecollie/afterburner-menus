@@ -64,7 +64,7 @@ def build(bld):
 
 	source = bld.path.ant_glob([
 		'*.cpp',
-		'miniutl/utlmemory.cpp',
+		'miniutl/*.cpp',
 		'font/*.cpp',
 		'menus/*.cpp',
 		'menus/dynamic/*.cpp',
