@@ -20,7 +20,7 @@ GNU General Public License for more details.
 
 ui_enginefuncs_t EngFuncs::engfuncs;
 #ifndef XASH_DISABLE_FWGS_EXTENSIONS
-ui_textfuncs_t	EngFuncs::textfuncs;
+ui_extendedfuncs_t	EngFuncs::textfuncs;
 #endif
 ui_globalvars_t	*gpGlobals;
 CMenu gMenu;
@@ -59,7 +59,7 @@ extern "C" EXPORT int GetMenuAPI(UI_FUNCTIONS *pFunctionTable, ui_enginefuncs_t*
 	memcpy( pFunctionTable, &gFunctionTable, sizeof( UI_FUNCTIONS ));
 	memcpy( &EngFuncs::engfuncs, pEngfuncsFromEngine, sizeof( ui_enginefuncs_t ));
 #ifndef XASH_DISABLE_FWGS_EXTENSIONS
-	memset( &EngFuncs::textfuncs, 0, sizeof( ui_textfuncs_t ));
+	memset( &EngFuncs::textfuncs, 0, sizeof( ui_extendedfuncs_t ));
 #endif
 	gpGlobals = pGlobals;
 
@@ -67,16 +67,38 @@ extern "C" EXPORT int GetMenuAPI(UI_FUNCTIONS *pFunctionTable, ui_enginefuncs_t*
 }
 
 #ifndef XASH_DISABLE_FWGS_EXTENSIONS
-extern "C" EXPORT int GiveTextAPI( ui_textfuncs_t* pTextfuncsFromEngine )
+static UI_EXTENDED_FUNCTIONS gExtendedTable =
 {
-	if( !pTextfuncsFromEngine )
+	AddTouchButtonToList,
+	UI_MenuResetPing_f,
+	UI_ConnectionWarning_f,
+	UI_UpdateDialog,
+	UI_ShowMessageBox,
+	UI_ConnectionProgress_Disconnect,
+	UI_ConnectionProgress_Download,
+	UI_ConnectionProgress_DownloadEnd,
+	UI_ConnectionProgress_Precache,
+	UI_ConnectionProgress_Connect,
+	UI_ConnectionProgress_ChangeLevel,
+	UI_ConnectionProgress_ParseServerInfo
+};
+
+extern "C" EXPORT int GetExtAPI( int version, UI_EXTENDED_FUNCTIONS *pFunctionTable, ui_extendedfuncs_t *pEngfuncsFromEngine )
+{
+	if( !pFunctionTable || !pEngfuncsFromEngine )
 	{
 		return FALSE;
 	}
 
-	// copy HUD_FUNCTIONS table to engine, copy engfuncs table from engine
-	memcpy( &EngFuncs::textfuncs, pTextfuncsFromEngine, sizeof( ui_textfuncs_t ));
+	if( version != MENU_EXTENDED_API_VERSION )
+	{
+		Con_Printf( "Error: failed to initialize extended menu API. Expected by DLL: %d. Got from engine: %d\n", MENU_EXTENDED_API_VERSION, version );
+		return FALSE;
+	}
+
+	memcpy( &EngFuncs::textfuncs, pEngfuncsFromEngine, sizeof( ui_extendedfuncs_t ) );
+	memcpy( pFunctionTable, &gExtendedTable, sizeof( UI_EXTENDED_FUNCTIONS ));
 
 	return TRUE;
 }
-#endif
+#endif // XASH_DISABLE_FWGS_EXTENSIONS
