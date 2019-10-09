@@ -23,9 +23,6 @@ GNU General Public License for more details.
 #include "gameinfo.h"
 #include "FontManager.h"
 #include "BMPUtils.h"
-#if 0
-#include <tgmath.h>
-#endif
 
 #define FILE_GLOBAL	static
 #define DLL_GLOBAL
@@ -125,7 +122,7 @@ inline unsigned int PackAlpha( const unsigned int ulRGB, const unsigned int ulAl
 
 inline unsigned int UnpackAlpha( const unsigned int ulRGBA )
 {
-	return ((ulRGBA & 0xFF000000) >> 24);	
+	return ((ulRGBA & 0xFF000000) >> 24);
 }
 
 inline float InterpVal( const float from, const float to, const float frac )
