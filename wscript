@@ -66,8 +66,7 @@ def build(bld):
 		'*.cpp',
 		'miniutl/*.cpp',
 		'font/*.cpp',
-		'menus/*.cpp',
-		'menus/dynamic/*.cpp',
+		'menus/**/*.cpp',
 		'model/*.cpp',
 		'controls/*.cpp'
 	])
