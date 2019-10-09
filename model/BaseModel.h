@@ -16,7 +16,6 @@ GNU General Public License for more details.
 #define BASE_MODEL_H
 
 #include "extdll_menu.h"
-#include "Primitive.h"
 
 enum ECellType
 {
