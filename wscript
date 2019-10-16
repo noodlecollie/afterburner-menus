@@ -71,6 +71,8 @@ def build(bld):
 		'controls/*.cpp'
 	])
 
+	source += bld.path.parent.ant_glob("game_menu_shared/**/*.cpp")
+
 	includes = [
 		'.',
 		'miniutl/',
@@ -78,9 +80,11 @@ def build(bld):
 		'controls/',
 		'menus/',
 		'model/',
+		'projectInterface_mainui/',
 		'../common',
 		'../engine',
-		'../pm_shared'
+		'../pm_shared',
+		'../game_menu_shared'
 	]
 
 	bld.shlib(
