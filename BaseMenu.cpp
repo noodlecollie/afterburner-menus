@@ -9,7 +9,7 @@ of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 See the GNU General Public License for more details.
 
@@ -32,6 +32,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "YesNoMessageBox.h"
 #include "BackgroundBitmap.h"
 #include "FontManager.h"
+#include "projectInterface/IProjectInterface.h"
+#include "projectInterface_mainui.h"
 #ifdef CS16CLIENT
 #include "Scoreboard.h"
 #endif
@@ -512,7 +514,7 @@ UI_DrawMouseCursor
 =================
 */
 void UI_DrawMouseCursor( void )
-{	
+{
 #ifdef _WIN32
 	CMenuBaseItem	*item;
 	HICON		hCursor = NULL;
@@ -684,7 +686,7 @@ void UI_UpdateMenu( float flTime )
 
 		uiStatic.firstDraw = false;
 		static int first = TRUE;
-                    
+
 		if( first )
 		{
 			// if game was launched with commandline e.g. +map or +load ignore the music
@@ -1072,7 +1074,7 @@ int UI_VidInit( void )
 	if( uiStatic.textInput )
 	{
 		uiStatic.menu.InputMethodResized();
-		
+
 		return 0;
 	}
 	UI_Precache ();
@@ -1090,7 +1092,7 @@ int UI_VidInit( void )
 		uiStatic.yOffset = 0;
 	}
 
-	
+
 	uiStatic.width = ScreenWidth / uiStatic.scaleX;
 	// move cursor to screen center
 	uiStatic.cursorX = ScreenWidth / 2;
@@ -1189,6 +1191,8 @@ UI_Init
 */
 void UI_Init( void )
 {
+	IProjectInterface::SetProjectInterfaceImpl(ProjectInterface_MainUI::StaticInstance());
+
 	// register our cvars and commands
 	ui_showmodels = EngFuncs::CvarRegister( "ui_showmodels", "0", FCVAR_ARCHIVE );
 	ui_show_window_stack = EngFuncs::CvarRegister( "ui_show_window_stack", "0", FCVAR_ARCHIVE );
