@@ -8,7 +8,7 @@ of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 See the GNU General Public License for more details.
 
@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "Action.h"
 #include "YesNoMessageBox.h"
 #include "Table.h"
+#include "botsetup/BotSetup.h"
 
 #define ART_BANNER		"gfx/shell/head_creategame"
 
@@ -146,7 +147,7 @@ void CMenuCreateGame::Begin( CMenuBaseItem *pSelf, void *pExtra )
 
 		char cmd[1024], cmd2[256];
 		sprintf( cmd, "exec %s\n", EngFuncs::GetCvarString( "lservercfgfile" ) );
-	
+
 		EngFuncs::ClientCmd( TRUE, cmd );
 
 		// dirty listenserver config form old xash may rewrite maxplayers
@@ -187,7 +188,7 @@ void CMenuMapListModel::Update( void )
 
 	strcpy( mapName[0], L( "GameUI_RandomMap" ) );
 	mapsDescription[0][0] = 0;
-	
+
 	while(( pfile = EngFuncs::COM_ParseFile( pfile, token )) != NULL )
 	{
 		if( numMaps >= UI_MAXGAMES ) break;
@@ -232,6 +233,8 @@ void CMenuCreateGame::_Init( void )
 	CMenuPicButton *advOpt = AddButton( L( "Adv. Options" ), L( "Open the game advanced options menu" ), PC_ADV_OPT, UI_AdvServerOptions_Menu );
 	advOpt->SetGrayed( !UI_AdvServerOptions_IsAvailable() );
 
+	AddButton(L("Bots"), L("Configure bots for this match."), PC_CONFIG, UI_BotSetup_Menu);
+
 	done = AddButton( L( "GameUI_OK" ), L( "Start the multiplayer game" ), PC_DONE, Begin );
 	done->onReleasedClActive = msgBox.MakeOpenEvent();
 
@@ -243,7 +246,7 @@ void CMenuCreateGame::_Init( void )
 	hostName.szName = L( "GameUI_ServerName" );
 	hostName.iMaxLength = 28;
 	hostName.LinkCvar( "hostname" );
-	
+
 	maxClients.iMaxLength = 3;
 	maxClients.bNumbersOnly = true;
 	maxClients.szName = L( "GameUI_MaxPlayers" );
@@ -252,7 +255,7 @@ void CMenuCreateGame::_Init( void )
 		CMenuField *self = (CMenuField*)pSelf;
 		const char *buf = self->GetBuffer();
 		if( buf[0] == 0 ) return;
-		
+
 		int players = atoi( buf );
 		if( players <= 1 )
 			self->SetBuffer( "2" );
@@ -263,7 +266,7 @@ void CMenuCreateGame::_Init( void )
 	{
 		CMenuField *self = (CMenuField*)pSelf;
 		const char *buf = self->GetBuffer();
-		
+
 		int players = atoi( buf );
 		if( players <= 1 )
 			self->SetBuffer( "16" );

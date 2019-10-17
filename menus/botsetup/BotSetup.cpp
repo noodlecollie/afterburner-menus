@@ -1,13 +1,20 @@
+#include "BotSetup.h"
 #include "Framework.h"
 #include "Table.h"
 #include "BotProfileListModel.h"
+#include "InGameBotListModel.h"
 #include "Field.h"
 #include "BotProfileImage.h"
+
+static CUtlVector<CInGameBotListModel::ListEntry> CachedInGameBotList;
 
 class CMenuBotSetup: public CMenuFramework
 {
 public:
 	CMenuBotSetup();
+
+	virtual void Show() override;
+	virtual void Hide() override;
 
 protected:
 	virtual void _Init() override;
@@ -32,26 +39,38 @@ private:
 	void RecalculateDimensions();
 
 	void AddButtonPressed();
-	void RemoveButtonPressed();
+	void RemoveAllButtonPressed();
+
+	void CacheCurrentInGameBotList();
+	void PopulateFromCachedInGameBotList();
+
+	void UpdateSelectedProfileDataFromUI();
+	void UpdateUIFromSelectedProfileData();
+	void UpdateButtonStates();
+	void ClearSelectedProfile();
+	void ResetSelectedTableIndices();
 
 	CMenuTable m_BotProfileList;
 	CBotProfileListModel m_BotProfileListModel;
 
 	CMenuTable m_InGameBotList;
-	CBotProfileListModel m_InGameBotListModel;
+	CInGameBotListModel m_InGameBotListModel;
 	CBotProfileImage m_SelectedBotImage;
 	CMenuField m_SelectedBotName;
 	CMenuPicButton m_AddButton;
-	CMenuPicButton m_RemoveButton;
+	CMenuPicButton m_RemoveAllButton;
 
 	int m_iSidePadding;
+	CInGameBotListModel::ListEntry m_SelectedProfile;
+	int m_iBotToRemoveFromGame;
 };
 
 static CMenuBotSetup uiBotSetup;
 
 CMenuBotSetup::CMenuBotSetup() :
 	CMenuFramework("CMenuBotSetup"),
-	m_iSidePadding(0)
+	m_iSidePadding(0),
+	m_iBotToRemoveFromGame(-1)
 {
 }
 
@@ -59,10 +78,26 @@ void CMenuBotSetup::_Init()
 {
 	AddItem(background);
 
+	m_BotProfileListModel.SetItemActivatedCallback([this](int index, const CBotProfileTable::ProfileData& data)
+	{
+		m_SelectedProfile.playerName = data.playerName;
+		m_SelectedProfile.profileName = data.profileName;
+		m_iBotToRemoveFromGame = -1;
+
+		UpdateUIFromSelectedProfileData();
+		UpdateButtonStates();
+	});
+
 	m_BotProfileList.SetCharSize(QM_SMALLFONT);
 	m_BotProfileList.SetupColumn(0, L("Available"), 1.0f);
 	m_BotProfileList.SetModel(&m_BotProfileListModel);
 	AddItem(m_BotProfileList);
+
+	m_InGameBotListModel.SetItemDeleteCallback([this]()
+	{
+		m_InGameBotList.Reload();
+		UpdateButtonStates();
+	});
 
 	m_InGameBotList.SetCharSize(QM_SMALLFONT);
 	m_InGameBotList.SetupColumn(0, L("In Game"), 1.0f);
@@ -76,13 +111,11 @@ void CMenuBotSetup::_Init()
 
 	m_AddButton.SetNameAndStatus(L("Add"), L("Add selected bot to the game."));
 	m_AddButton.onReleased = VoidCb(&CMenuBotSetup::AddButtonPressed);
-	m_AddButton.iFlags |= QMF_GRAYED;
 	AddItem(m_AddButton);
 
-	m_RemoveButton.SetNameAndStatus(L("Remove"), L("Remove selected bot from the game."));
-	m_RemoveButton.onReleased = VoidCb(&CMenuBotSetup::RemoveButtonPressed);
-	m_RemoveButton.iFlags |= QMF_HIDDEN;
-	AddItem(m_RemoveButton);
+	m_RemoveAllButton.SetNameAndStatus(L("Remove All"), L("Remove all currently added bots."));
+	m_RemoveAllButton.onReleased = VoidCb(&CMenuBotSetup::RemoveAllButtonPressed);
+	AddItem(m_RemoveAllButton);
 
 	AddButton(L("Done"), nullptr, PC_DONE, VoidCb(&CMenuBotSetup::Hide));
 }
@@ -106,8 +139,11 @@ void CMenuBotSetup::_VidInit()
 	const int botNameBottomEdge = m_SelectedBotName.pos.y + m_SelectedBotName.size.h;
 	m_AddButton.SetCoord(profileListRightEdge + (LIST_SPACING / 2) - 25,
 						 botNameBottomEdge + CENTRAL_CONTROL_SPACING);
-	m_RemoveButton.SetCoord(profileListRightEdge + (LIST_SPACING / 2) - 50,
-						 botNameBottomEdge + CENTRAL_CONTROL_SPACING);
+
+	m_RemoveAllButton.SetCoord(profileListRightEdge + (LIST_SPACING / 2) - 75,
+							   -BOTTOM_EDGE_MARGIN - 25);
+
+	UpdateButtonStates();
 }
 
 void CMenuBotSetup::RecalculateDimensions()
@@ -127,10 +163,102 @@ void CMenuBotSetup::RecalculateDimensions()
 
 void CMenuBotSetup::AddButtonPressed()
 {
+	UpdateSelectedProfileDataFromUI();
+
+	if ( m_SelectedProfile.profileName.Length() > 0 && !m_InGameBotListModel.IsFull() )
+	{
+		m_InGameBotListModel.AddEntry(m_SelectedProfile.profileName, m_SelectedProfile.playerName);
+		m_InGameBotList.Reload();
+	}
+
+	UpdateButtonStates();
 }
 
-void CMenuBotSetup::RemoveButtonPressed()
+void CMenuBotSetup::RemoveAllButtonPressed()
 {
+	m_InGameBotListModel.Clear();
+	m_InGameBotList.Reload();
+	UpdateButtonStates();
+}
+
+void CMenuBotSetup::UpdateSelectedProfileDataFromUI()
+{
+	m_SelectedProfile.profileName = m_SelectedBotName.GetBuffer();
+}
+
+void CMenuBotSetup::UpdateUIFromSelectedProfileData()
+{
+	m_SelectedBotName.SetBuffer(m_SelectedProfile.playerName.String());
+}
+
+void CMenuBotSetup::UpdateButtonStates()
+{
+	m_AddButton.SetGrayed(m_SelectedProfile.profileName.Length() < 1 || m_InGameBotListModel.IsFull());
+	m_RemoveAllButton.SetGrayed(m_InGameBotListModel.GetRows() < 1);
+}
+
+void CMenuBotSetup::ClearSelectedProfile()
+{
+	m_SelectedProfile.profileName.Clear();
+	m_SelectedProfile.playerName.Clear();
+	m_SelectedBotName.Clear();
+}
+
+void CMenuBotSetup::ResetSelectedTableIndices()
+{
+	if ( m_BotProfileListModel.GetRows() > 0 )
+	{
+		m_BotProfileList.SetCurrentIndex(0);
+	}
+
+	if ( m_InGameBotListModel.GetRows() > 0 )
+	{
+		m_InGameBotList.SetCurrentIndex(0);
+	}
+}
+
+void CMenuBotSetup::CacheCurrentInGameBotList()
+{
+	CachedInGameBotList.Purge();
+
+	for ( uint32_t index = 0; index < m_InGameBotListModel.GetRows(); ++index )
+	{
+		CachedInGameBotList.AddToTail(*m_InGameBotListModel.Entry(index));
+	}
+}
+
+void CMenuBotSetup::PopulateFromCachedInGameBotList()
+{
+	m_InGameBotListModel.Clear();
+
+	FOR_EACH_VEC(CachedInGameBotList, index)
+	{
+		const CInGameBotListModel::ListEntry& entry = CachedInGameBotList[index];
+
+		m_InGameBotListModel.AddEntry(entry.profileName, entry.playerName);
+	}
+
+	m_InGameBotList.Reload();
+	CachedInGameBotList.Purge();
+}
+
+void CMenuBotSetup::Show()
+{
+	CMenuFramework::Show();
+
+	PopulateFromCachedInGameBotList();
+	ClearSelectedProfile();
+	UpdateButtonStates();
+	ResetSelectedTableIndices();
+}
+
+void CMenuBotSetup::Hide()
+{
+	CacheCurrentInGameBotList();
+	ClearSelectedProfile();
+	UpdateButtonStates();
+
+	CMenuFramework::Hide();
 }
 
 void UI_BotSetup_Precache()
