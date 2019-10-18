@@ -14,10 +14,25 @@ void CBotProfileImage::Init()
 void CBotProfileImage::Draw()
 {
 	UI_FillRect(m_scPos, m_scSize, uiPromptBgColor);
-	UI_DrawString(font, m_scPos, m_scSize, L("Bot preview goes here"), colorBase, m_scChSize, QM_CENTER, ETF_SHADOW);
+	//UI_DrawString(font, m_scPos, m_scSize, L("Bot preview goes here"), colorBase, m_scChSize, QM_CENTER, ETF_SHADOW);
+
+	if ( m_hImage )
+	{
+		EngFuncs::PIC_Set(m_hImage, 255, 255, 255, 255);
+		EngFuncs::PIC_Draw(m_scPos, m_scSize);
+	}
 }
 
-const HIMAGE& CBotProfileImage::Image() const
+void CBotProfileImage::SetImage(const CUtlString& botSkin)
 {
-	return m_hImage;
+	if ( botSkin.IsEmpty() )
+	{
+		m_hImage = 0;
+		return;
+	}
+
+	CUtlString pathToImage;
+	pathToImage.AppendFormat("models/player/%s/%s.bmp", botSkin.String(), botSkin.String());
+
+	m_hImage = EngFuncs::PIC_Load(pathToImage.String(), 0);
 }

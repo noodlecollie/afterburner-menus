@@ -36,14 +36,13 @@ private:
 
 	static constexpr int MAX_BOT_NAME_LENGTH = 32;
 
-	void RecalculateDimensions();
-
 	void AddButtonPressed();
 	void RemoveAllButtonPressed();
 
 	void CacheCurrentInGameBotList();
 	void PopulateFromCachedInGameBotList();
 
+	void RecalculateDimensions();
 	void UpdateSelectedProfileDataFromUI();
 	void UpdateUIFromSelectedProfileData();
 	void UpdateButtonStates();
@@ -61,16 +60,14 @@ private:
 	CMenuPicButton m_RemoveAllButton;
 
 	int m_iSidePadding;
-	CInGameBotListModel::ListEntry m_SelectedProfile;
-	int m_iBotToRemoveFromGame;
+	CBotProfileTable::ProfileData m_SelectedProfile;
 };
 
 static CMenuBotSetup uiBotSetup;
 
 CMenuBotSetup::CMenuBotSetup() :
 	CMenuFramework("CMenuBotSetup"),
-	m_iSidePadding(0),
-	m_iBotToRemoveFromGame(-1)
+	m_iSidePadding(0)
 {
 }
 
@@ -80,9 +77,7 @@ void CMenuBotSetup::_Init()
 
 	m_BotProfileListModel.SetItemActivatedCallback([this](int index, const CBotProfileTable::ProfileData& data)
 	{
-		m_SelectedProfile.playerName = data.playerName;
-		m_SelectedProfile.profileName = data.profileName;
-		m_iBotToRemoveFromGame = -1;
+		m_SelectedProfile = data;
 
 		UpdateUIFromSelectedProfileData();
 		UpdateButtonStates();
@@ -183,12 +178,13 @@ void CMenuBotSetup::RemoveAllButtonPressed()
 
 void CMenuBotSetup::UpdateSelectedProfileDataFromUI()
 {
-	m_SelectedProfile.profileName = m_SelectedBotName.GetBuffer();
+	m_SelectedProfile.playerName = m_SelectedBotName.GetBuffer();
 }
 
 void CMenuBotSetup::UpdateUIFromSelectedProfileData()
 {
 	m_SelectedBotName.SetBuffer(m_SelectedProfile.playerName.String());
+	m_SelectedBotImage.SetImage(m_SelectedProfile.skin);
 }
 
 void CMenuBotSetup::UpdateButtonStates()
@@ -201,6 +197,7 @@ void CMenuBotSetup::ClearSelectedProfile()
 {
 	m_SelectedProfile.profileName.Clear();
 	m_SelectedProfile.playerName.Clear();
+	m_SelectedProfile.skin.Clear();
 	m_SelectedBotName.Clear();
 }
 

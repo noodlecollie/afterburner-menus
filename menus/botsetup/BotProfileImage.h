@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BaseItem.h"
+#include "utlstring.h"
 
 class CBotProfileImage : public CMenuBaseItem
 {
@@ -12,7 +13,8 @@ public:
 
 	virtual void Init() override;
 	virtual void Draw() override;
-	const HIMAGE& Image() const;
+
+	void SetImage(const CUtlString& botSkin);
 
 private:
 	HIMAGE m_hImage;
