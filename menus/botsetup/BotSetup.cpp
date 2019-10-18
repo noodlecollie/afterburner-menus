@@ -267,4 +267,14 @@ void UI_BotSetup_Menu()
 	uiBotSetup.Show();
 }
 
+void BotSetup_GetBotsToAddToGame(CUtlVector<CInGameBotListModel::ListEntry>& list)
+{
+	list.Purge();
+
+	FOR_EACH_VEC(CachedInGameBotList, index)
+	{
+		list.AddToTail(CachedInGameBotList[index]);
+	}
+}
+
 ADD_MENU(menu_botsetup, UI_BotSetup_Precache, UI_BotSetup_Menu);

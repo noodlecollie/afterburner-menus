@@ -159,6 +159,33 @@ void CMenuCreateGame::Begin( CMenuBaseItem *pSelf, void *pExtra )
 		sprintf( cmd, "endgame;menu_connectionprogress localserver;wait;wait;wait;maxplayers %i;latch;map %s\n", atoi( menu->maxClients.GetBuffer() ), cmd2 );
 		EngFuncs::ClientCmd( FALSE, cmd );
 
+		CUtlVector<CInGameBotListModel::ListEntry> botList;
+		BotSetup_GetBotsToAddToGame(botList);
+
+		if ( botList.Count() > 0 )
+		{
+			CUtlString botCmd;
+
+			// Must wait a frame after invoking the map command, or the bot register will not be initialised.
+			botCmd.Append("wait");
+
+			FOR_EACH_VEC(botList, index)
+			{
+				const CInGameBotListModel::ListEntry& entry = botList[index];
+
+				CUtlString command;
+				command.AppendFormat("; bot_register_add \"%s\"", entry.profileName.String());
+
+				if ( !entry.playerName.IsEmpty() )
+				{
+					command.AppendFormat(" \"%s\"", entry.playerName.String());
+				}
+
+				botCmd.Append(command.String());
+			}
+
+			EngFuncs::ClientCmd(FALSE, botCmd.String());
+		}
 	}
 }
 
