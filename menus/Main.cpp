@@ -8,7 +8,7 @@ of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 See the GNU General Public License for more details.
 
@@ -117,7 +117,9 @@ void CMenuMain::QuitDialog(void *pExtra)
 
 void CMenuMain::DisconnectDialogCb()
 {
-	dialog.onPositive.SetCommand( FALSE, "cmd disconnect;endgame disconnect;wait;wait;wait;menu_options;menu_main\n" );
+	// "cmd disconnect" appears to just reconnect us immediately after being invoked??
+	// Until someone can tell me what's going on there, removing the "cmd" seems to work.
+	dialog.onPositive.SetCommand( FALSE, "disconnect;endgame disconnect;wait;wait;wait;menu_options;menu_main\n" );
 	dialog.SetMessage( L( "Really disconnect?" ) );
 	dialog.Show();
 }
