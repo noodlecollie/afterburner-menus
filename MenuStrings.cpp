@@ -34,22 +34,13 @@ CUtlHashMap<const char *, const char *> hashed_cmds;
 
 const char *MenuStrings[IDS_LAST] =
 {
-EMPTY_STRINGS_100, // 0..9
-EMPTY_STRINGS_20, // 100..119
-EMPTY_STRINGS_10, // 120..129
-EMPTY_STRINGS_2, // 130..131
-"Display mode", // 132
-EMPTY_STRINGS_5, // 133..137
-EMPTY_STRINGS_2, // 138..139
-EMPTY_STRINGS_20, // 140..159
-EMPTY_STRINGS_10, // 160..169
-EMPTY_STRINGS_1, // 170
-"Reverse mouse", // 171
-EMPTY_STRINGS_10, // 172..181
-EMPTY_STRINGS_2, // 182..183
-"Mouse sensitivity", // 184
-EMPTY_STRINGS_1, // 185
-EMPTY_STRINGS_2, // 186..187
+EMPTY_STRINGS_100, // 0..99
+EMPTY_STRINGS_50, // 100..149
+EMPTY_STRINGS_20, // 150..169
+EMPTY_STRINGS_10, // 170..179
+EMPTY_STRINGS_5, // 180..184
+EMPTY_STRINGS_2, // 185..186
+EMPTY_STRINGS_1, // 187
 "Return to game.", // 188
 "Start a new game.", // 189
 EMPTY_STRINGS_1,	// 190
@@ -59,10 +50,7 @@ EMPTY_STRINGS_1,	// 190
 EMPTY_STRINGS_20, // 194..213
 EMPTY_STRINGS_20, // 214..233
 "Starting a Hazard Course will exit\nany current game, OK to exit?", // 234
-EMPTY_STRINGS_1, // 235
-"Are you sure you want to quit?", // 236
-EMPTY_STRINGS_2, // 237..238
-EMPTY_STRINGS_1, // 239
+EMPTY_STRINGS_5, // 235..239
 "Starting a new game will exit\nany current game, OK to exit?",	// 240
 EMPTY_STRINGS_5, // 241..245
 EMPTY_STRINGS_2, // 246..247
@@ -243,105 +231,131 @@ int UTFToCP1251( char *out, const char *instr, int len, int maxoutlen )
 
 static void Localize_AddToDictionary( const char *name, const char *lang )
 {
-	char filename[64];
+	char filename[64], token[4096];
+	char *pfile, *afile = NULL, *pFileBuf;
+	int i = 0, len;
+	bool isUtf16 = false;
+
 	snprintf( filename, sizeof( filename ), "resource/%s_%s.txt", name, lang );
 
-	int unicodeLength;
-	char *pFileBuf = (char*)EngFuncs::COM_LoadFile( filename, &unicodeLength );
+	pFileBuf = (char*)EngFuncs::COM_LoadFile( filename, &len );
 
-	if( pFileBuf ) // no problem, so read it.
+	if( !pFileBuf )
 	{
-		int ansiLength = unicodeLength + 1;
-		char *afile = new char[ansiLength]; // save original pointer, so we can free it later
-		uchar16 *autf16 = new uchar16[unicodeLength/2 + 1];
-		char *pfile = afile;
-		char token[4096];
-		int i = 0;
+		Con_Printf( "Couldn't open file %s. Some strings will not be localized!.\n", filename );
+		return;
+	}
 
-		memcpy( autf16, pFileBuf + 2, unicodeLength - 1 );
-		autf16[unicodeLength/2-1] = 0; //null terminator
+	// support only utf-16le
+	if( pFileBuf[0] == '\xFF' && pFileBuf[1] == '\xFE' )
+	{
+		if( len > 3 && !pFileBuf[2] && !pFileBuf[3] )
+		{
+			Con_Printf( "Couldn't parse file %s. UTF-32 little endian isn't supported\n", filename );
+			goto error;
+		}
+		isUtf16 = true;
+	}
+	else if( pFileBuf[0] == '\xFE' && pFileBuf[1] == '\xFF' )
+	{
+		Con_Printf( "Couldn't parse file %s. UTF-16/UTF-32 big endian isn't supported\n" );
+		goto error;
+	}
+
+	if( isUtf16 )
+	{
+		int ansiLength = len + 1;
+		uchar16 *autf16 = new uchar16[len/2 + 1];
+
+		memcpy( autf16, pFileBuf + 2, len - 1 );
+		autf16[len/2-1] = 0; //null terminator
+
+		afile = new char[ansiLength]; // save original pointer, so we can free it later
 
 		Q_UTF16ToUTF8( autf16, afile, ansiLength, STRINGCONVERT_ASSERT_REPLACE );
 
-#ifdef XASH_DISABLE_FWGS_EXTENSIONS
-		UTFToCP1251( afile, afile, ansiLength, ansiLength );
-#endif // XASH_DISABLE_FWGS_EXTENSIONS
-
-		pfile = EngFuncs::COM_ParseFile( pfile, token );
-
-		if( stricmp( token, "lang" ))
-		{
-			Con_Printf( "Localize_AddToDict( %s, %s ): invalid header, got %s", name, lang, token );
-			goto error;
-		}
-
-		pfile = EngFuncs::COM_ParseFile( pfile, token );
-
-		if( strcmp( token, "{" ))
-		{
-			Con_Printf( "Localize_AddToDict( %s, %s ): want {, got %s", name, lang, token );
-			goto error;
-		}
-
-		pfile = EngFuncs::COM_ParseFile( pfile, token );
-
-		if( stricmp( token, "Language" ))
-		{
-			Con_Printf( "Localize_AddToDict( %s, %s ): want Language, got %s", name, lang, token );
-			goto error;
-		}
-
-		// skip language actual name
-		pfile = EngFuncs::COM_ParseFile( pfile, token );
-
-		pfile = EngFuncs::COM_ParseFile( pfile, token );
-
-		if( stricmp( token, "Tokens" ))
-		{
-			Con_Printf( "Localize_AddToDict( %s, %s ): want Tokens, got %s", name, lang, token );
-			goto error;
-		}
-
-		pfile = EngFuncs::COM_ParseFile( pfile, token );
-
-		if( strcmp( token, "{" ))
-		{
-			Con_Printf( "Localize_AddToDict( %s, %s ): want { after Tokens, got %s", name, lang, token );
-			goto error;
-		}
-
-		while( (pfile = EngFuncs::COM_ParseFile( pfile, token )))
-		{
-			if( !strcmp( token, "}" ))
-				break;
-
-			char szLocString[4096];
-			pfile = EngFuncs::COM_ParseFile( pfile, szLocString );
-
-			if( !strcmp( szLocString, "}" ))
-				break;
-
-
-			if( pfile )
-			{
-				// Con_DPrintf("New token: %s %s\n", token, szLocString );
-				Dictionary_Insert( token, szLocString );
-				i++;
-			}
-		}
-
-		Con_Printf( "Localize_AddToDict: loaded %i words from %s\n", i, filename );
-
-error:
-		delete[] afile;
 		delete[] autf16;
-
-		EngFuncs::COM_FreeFile( pFileBuf );
 	}
 	else
 	{
-		Con_Printf( "Couldn't open file %s. Some strings will not be localized!.\n", filename );
+		afile = pFileBuf;
+
+		// strip UTF-8 BOM
+		if( afile[0] == '\xEF' && afile[1] == '\xBB' && afile[2] == '\xBF')
+			afile += 3;
 	}
+
+	pfile = afile;
+
+	pfile = EngFuncs::COM_ParseFile( pfile, token );
+
+	if( stricmp( token, "lang" ))
+	{
+		Con_Printf( "Localize_AddToDict( %s, %s ): invalid header, got %s", name, lang, token );
+		goto error;
+	}
+
+	pfile = EngFuncs::COM_ParseFile( pfile, token );
+
+	if( strcmp( token, "{" ))
+	{
+		Con_Printf( "Localize_AddToDict( %s, %s ): want {, got %s", name, lang, token );
+		goto error;
+	}
+
+	pfile = EngFuncs::COM_ParseFile( pfile, token );
+
+	if( stricmp( token, "Language" ))
+	{
+		Con_Printf( "Localize_AddToDict( %s, %s ): want Language, got %s", name, lang, token );
+		goto error;
+	}
+
+	// skip language actual name
+	pfile = EngFuncs::COM_ParseFile( pfile, token );
+
+	pfile = EngFuncs::COM_ParseFile( pfile, token );
+
+	if( stricmp( token, "Tokens" ))
+	{
+		Con_Printf( "Localize_AddToDict( %s, %s ): want Tokens, got %s", name, lang, token );
+		goto error;
+	}
+
+	pfile = EngFuncs::COM_ParseFile( pfile, token );
+
+	if( strcmp( token, "{" ))
+	{
+		Con_Printf( "Localize_AddToDict( %s, %s ): want { after Tokens, got %s", name, lang, token );
+		goto error;
+	}
+
+	while( (pfile = EngFuncs::COM_ParseFile( pfile, token )))
+	{
+		if( !strcmp( token, "}" ))
+			break;
+
+		char szLocString[4096];
+		pfile = EngFuncs::COM_ParseFile( pfile, szLocString );
+
+		if( !strcmp( szLocString, "}" ))
+			break;
+
+		if( pfile )
+		{
+			// Con_DPrintf("New token: %s %s\n", token, szLocString );
+			Dictionary_Insert( token, szLocString );
+			i++;
+		}
+	}
+
+	Con_Printf( "Localize_AddToDict: loaded %i words from %s(%s encoding)\n", i, filename, isUtf16 ? "UTF-16" : "UTF-8" );
+
+error:
+	if( isUtf16 && afile )
+		delete[] afile;
+
+	EngFuncs::COM_FreeFile( pFileBuf );
 }
 
 static void Localize_Init( void )
@@ -363,20 +377,23 @@ static void Localize_Init( void )
 		Dictionary_Insert( buf, MenuStrings[i] );
 	}
 
+	// strings.lst compatible aliasstrings then
+	UI_InitAliasStrings ();
+
 	const char *language = EngFuncs::GetCvarString( "ui_language" );
 	const char *gamedir = gMenu.m_gameinfo.gamefolder;
 
 	if( !language[0] )
 		language = "english"; // fallback to just english
 
-	if( strcmp( gamedir, "mainui" ))
-		Localize_AddToDictionary( "mainui", language );
-
 	if( strcmp( gamedir, "gameui" ))
 		Localize_AddToDictionary( "gameui", language );
 
 	if( strcmp( gamedir, "valve" ))
 		Localize_AddToDictionary( "valve",  language );
+
+	if( strcmp( gamedir, "mainui" ))
+		Localize_AddToDictionary( "mainui", language );
 
 	Localize_AddToDictionary( gamedir,  language );
 }
@@ -427,7 +444,6 @@ void UI_LoadCustomStrings( void )
 
 localize_init:
 	Localize_Init();
-	UI_InitAliasStrings ();
 }
 
 const char *L( const char *szStr ) // L means Localize!

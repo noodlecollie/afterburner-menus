@@ -118,7 +118,7 @@ void CMenuTouchOptions::CProfiliesListModel::Update( void )
 	Q_strncpy( profileDesc[i], L( "Profiles:" ), CS_SIZE );
 	i++;
 
-	Q_strncpy( profileDesc[i], L( "default" ), CS_SIZE );
+	Q_strncpy( profileDesc[i], "default", CS_SIZE );
 
 	iHighlight = firstProfile = i;
 	i++;
@@ -321,11 +321,11 @@ void CMenuTouchOptions::_Init( void )
 	lookY.Setup( 50, 500, 5 );
 	lookY.LinkCvar( "touch_pitch" );
 
-	moveX.SetNameAndStatus( L( "Side" ), L( "Side move sensitivity" ) );
+	moveX.SetNameAndStatus( L( "Side" ), L( "Side movement sensitity" ) );
 	moveX.Setup( 0.02, 1.0, 0.05 );
 	moveX.LinkCvar( "touch_sidezone" );
 
-	moveY.SetNameAndStatus( L( "Forward" ), L( "Forward move sensitivity" ) );
+	moveY.SetNameAndStatus( L( "Forward" ), L( "Forward movement sensitivity" ) );
 	moveY.Setup( 0.02, 1.0, 0.05 );
 	moveY.LinkCvar( "touch_forwardzone" );
 
@@ -339,7 +339,7 @@ void CMenuTouchOptions::_Init( void )
 	enable.SetNameAndStatus( L( "Enable touch" ), L( "Enable or disable touch controls" ) );
 	enable.LinkCvar( "touch_enable" );
 
-	nomouse.SetNameAndStatus( L( "Ignore Mouse" ), L( "Ignore mouse input" ) );
+	nomouse.SetNameAndStatus( L( "Ignore mouse" ), L( "Ignore mouse input" ) );
 	nomouse.LinkCvar( "m_ignore" );
 
 	acceleration.SetNameAndStatus( L( "Enable acceleration" ), L( "Nonlinear looking (touch_nonlinear_look)" ) );
