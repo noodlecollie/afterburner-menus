@@ -141,11 +141,7 @@ int CBitmapFont::DrawCharacter(int ch, Point pt, int charH, const unsigned int c
 	}
 	else
 	{
-<<<<<<< HEAD
-		char str[2] = {static_cast<char>(ch), 0};
-=======
 		char str[2] = {(char)ch, 0};
->>>>>>> upstream/master
 		EngFuncs::engfuncs.pfnDrawSetTextColor( Red( color ), Green( color ), Blue( color ), Alpha( color ) );
 
 		return EngFuncs::engfuncs.pfnDrawConsoleString( pt.x, pt.y, str ) - pt.x;
