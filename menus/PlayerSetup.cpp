@@ -8,7 +8,7 @@ of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 See the GNU General Public License for more details.
 
@@ -147,7 +147,7 @@ void CMenuPlayerSetup::CModelListModel::Update( void )
 	char	name[256];
 	char	**filenames;
 	int numFiles, i;
-	
+
 	m_iCount = 0;
 
 	// Get file list
@@ -260,7 +260,7 @@ void CMenuPlayerSetup::UpdateModel()
 
 	if( !strcmp( mdl, "player" ) )
 	{
-		strcpy( image, "models/player.mdl" );
+		strcpy( image, PLAYER_MODEL_PATH );
 	}
 	else
 	{
