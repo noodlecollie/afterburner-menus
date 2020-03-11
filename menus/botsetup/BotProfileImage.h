@@ -17,5 +17,5 @@ public:
 	void SetImage(const CUtlString& botSkin);
 
 private:
-	HIMAGE m_hImage;
+	HIMAGE m_hImage = 0;
 };

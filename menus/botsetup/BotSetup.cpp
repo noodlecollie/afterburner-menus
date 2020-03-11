@@ -63,8 +63,6 @@ private:
 	CBotProfileTable::ProfileData m_SelectedProfile;
 };
 
-static CMenuBotSetup uiBotSetup;
-
 CMenuBotSetup::CMenuBotSetup() :
 	CMenuFramework("CMenuBotSetup"),
 	m_iSidePadding(0)
@@ -258,15 +256,6 @@ void CMenuBotSetup::Hide()
 	CMenuFramework::Hide();
 }
 
-void UI_BotSetup_Precache()
-{
-}
-
-void UI_BotSetup_Menu()
-{
-	uiBotSetup.Show();
-}
-
 void BotSetup_GetBotsToAddToGame(CUtlVector<CInGameBotListModel::ListEntry>& list)
 {
 	list.Purge();
@@ -277,4 +266,4 @@ void BotSetup_GetBotsToAddToGame(CUtlVector<CInGameBotListModel::ListEntry>& lis
 	}
 }
 
-ADD_MENU(menu_botsetup, UI_BotSetup_Precache, UI_BotSetup_Menu);
+ADD_MENU(menu_botsetup, CMenuBotSetup, UI_BotSetup_Menu);
