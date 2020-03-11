@@ -26,9 +26,9 @@ class EngFuncs
 {
 public:
 	// image handlers
-	static inline HIMAGE PIC_Load( const char *szPicName, const byte *ucRawImage, long ulRawImageSize, long flags = 0)
+	static inline HIMAGE PIC_Load( const char *szPicName, const byte *ucRawImage, int ulRawImageSize, int flags = 0)
 	{ return engfuncs.pfnPIC_Load( szPicName, ucRawImage, ulRawImageSize, flags );	}
-	static inline HIMAGE PIC_Load( const char *szPicName, long flags = 0)
+	static inline HIMAGE PIC_Load( const char *szPicName, int flags = 0)
 	{ return engfuncs.pfnPIC_Load( szPicName, 0, 0, flags ); }
 	static inline void	PIC_Free( const char *szPicName )
 	{ engfuncs.pfnPIC_Free( szPicName ); }
@@ -260,16 +260,23 @@ public:
 	static ui_enginefuncs_t engfuncs;
 
 	// text funcs
-#ifndef XASH_DISABLE_FWGS_EXTENSIONS
 	static ui_extendedfuncs_t textfuncs;
 	static inline void EnableTextInput( int enable )
 	{ if( textfuncs.pfnEnableTextInput ) textfuncs.pfnEnableTextInput( enable ); }
-#else
-	static inline void EnableTextInput( int enable ) { }
-#endif
+
 	static int UtfProcessChar( int ch );
 	static int UtfMoveLeft( const char *str, int pos );
 	static int UtfMoveRight( const char *str, int pos, int length );
+
+	static inline bool GetRenderers( int num, char *sz1, size_t s1, char *sz2, size_t s2 )
+	{
+		return textfuncs.pfnGetRenderers( num, sz1, s1, sz2, s2 ) != 0;
+	}
+	
+	static inline double DoubleTime()
+	{
+		return textfuncs.pfnDoubleTime();
+	}
 };
 
 

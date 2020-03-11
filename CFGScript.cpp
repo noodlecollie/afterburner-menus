@@ -26,7 +26,7 @@ const char *cvartypes[] = { NULL, "BOOL" , "NUMBER", "LIST", "STRING" };
 
 struct parserstate_t
 {
-	parserstate_t() : buf( NULL ), token(), filename( NULL ) {}
+	parserstate_t() : buf( NULL ), filename( NULL ) { token[0] = 0;}
 	char *buf;
 	char token[MAX_STRING];
 	const char *filename;
@@ -269,7 +269,7 @@ scrvardef_t *CSCR_LoadDefaultCVars( const char *scriptfilename, int *count )
 	char *start;
 	parserstate_t state;
 	bool success = false;
-	scrvardef_t *list = 0, *last;
+	scrvardef_t *list = 0, *last = 0;
 
 	*count = 0;
 

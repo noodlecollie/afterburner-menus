@@ -79,7 +79,7 @@ public:
 	bool prevFullscreen;
 	float testModeTimer;
 	char testModeMsg[256];
-} uiVidModes;
+};
 
 
 /*
@@ -234,14 +234,16 @@ void CMenuVidModes::_Init( void )
 	windowed.SetCoord( 360, 620 );
 	SET_EVENT_MULTI( windowed.onChanged,
 	{
-		if( !uiVidModes.windowed.bChecked && uiVidModes.vidList.GetCurrentIndex() < VID_AUTOMODE_POS )
-			uiVidModes.vidList.SetCurrentIndex( VID_AUTOMODE_POS );
+		CMenuVidModes *parent = pSelf->GetParent(CMenuVidModes);
+		if( !parent->windowed.bChecked && parent->vidList.GetCurrentIndex() < VID_AUTOMODE_POS )
+			parent->vidList.SetCurrentIndex( VID_AUTOMODE_POS );
 	});
 
 	SET_EVENT_MULTI( vidList.onChanged,
 	{
-		if( !uiVidModes.windowed.bChecked && uiVidModes.vidList.GetCurrentIndex() < VID_AUTOMODE_POS )
-			uiVidModes.vidList.SetCurrentIndex( VID_AUTOMODE_POS );
+		CMenuVidModes *parent = pSelf->GetParent(CMenuVidModes);
+		if( !parent->windowed.bChecked && parent->vidList.GetCurrentIndex() < VID_AUTOMODE_POS )
+			parent->vidList.SetCurrentIndex( VID_AUTOMODE_POS );
 	});
 
 	vsync.SetNameAndStatus( L( "GameUI_VSync" ), L( "GameUI_VSync" ) );
@@ -273,23 +275,4 @@ void CMenuVidModes::_VidInit()
 	}
 }
 
-/*
-=================
-UI_VidModes_Precache
-=================
-*/
-void UI_VidModes_Precache( void )
-{
-	EngFuncs::PIC_Load( ART_BANNER );
-}
-
-/*
-=================
-UI_VidModes_Menu
-=================
-*/
-void UI_VidModes_Menu( void )
-{
-	uiVidModes.Show();
-}
-ADD_MENU( menu_vidmodes, UI_VidModes_Precache, UI_VidModes_Menu );
+ADD_MENU( menu_vidmodes, CMenuVidModes, UI_VidModes_Menu );

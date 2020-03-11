@@ -42,16 +42,16 @@ enum engineAxis_t
 
 static const char *axisNames[7] =
 {
-	"Side Movement",
-	"Forward Movement",
-	"Camera Vertical Turn",
-	"Camera Horizontal Turn",
+	"Side",
+	"Forward",
+	"Yaw",
+	"Pitch",
 	"Right Trigger",
 	"Left Trigger",
 	"NOT BOUND"
 };
 
-static class CMenuGamePad : public CMenuFramework
+class CMenuGamePad : public CMenuFramework
 {
 public:
 	CMenuGamePad() : CMenuFramework("CMenuGamePad") { }
@@ -68,8 +68,7 @@ private:
 	CMenuSpinControl axisBind[6];
 
 	CMenuAction axisBind_label;
-} uiGamePad;
-
+};
 
 /*
 =================
@@ -192,7 +191,7 @@ void CMenuGamePad::_Init( void )
 {
 	int i, y;
 
-	static CStringArrayModel model( axisNames, ARRAYSIZE( axisNames ) );
+	static CStringArrayModel model( axisNames, V_ARRAYSIZE( axisNames ) );
 
 	banner.SetPicture( ART_BANNER );
 
@@ -274,23 +273,4 @@ void CMenuGamePad::_VidInit()
 	GetConfig();
 }
 
-/*
-=================
-CMenuGamePad::Precache
-=================
-*/
-void UI_GamePad_Precache( void )
-{
-	EngFuncs::PIC_Load( ART_BANNER );
-}
-
-/*
-=================
-CMenuGamePad::Menu
-=================
-*/
-void UI_GamePad_Menu( void )
-{
-	uiGamePad.Show();
-}
-ADD_MENU( menu_gamepad, UI_GamePad_Precache, UI_GamePad_Menu );
+ADD_MENU( menu_gamepad, CMenuGamePad, UI_GamePad_Menu );

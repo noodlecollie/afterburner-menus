@@ -47,7 +47,7 @@ public:
 	{
 		Q_strncpy( szBuffer, buffer, UI_MAX_FIELD_LINE );
 		iCursor = strlen( szBuffer );
-		iScroll = g_FontMgr.CutText( font, szBuffer, m_scChSize, iRealWidth, true );
+		iScroll = g_FontMgr->CutText( font, szBuffer, m_scChSize, iRealWidth, true );
 	}
 
 	const char *GetBuffer()
@@ -58,8 +58,8 @@ public:
 	bool bAllowColorstrings;
 	bool bHideInput;
 	bool bNumbersOnly;
-	const char	*szBackground;
-	int		iMaxLength;		// can't be more than UI_MAX_FIELD_LINE
+	CImage szBackground;
+	int    iMaxLength;		// can't be more than UI_MAX_FIELD_LINE
 
 protected:
 	void _Event( int ev ) override;

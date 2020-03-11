@@ -54,6 +54,10 @@ public:
 	CMenuCustomGame() : CMenuFramework("CMenuCustomGame") { }
 
 private:
+	void ShowDialog( void )
+	{
+		msgBox.ToggleVisibility();
+	}
 	void ChangeGame( void *pExtra );
 	void Go2Site( void *pExtra );
 	void UpdateExtras( );
@@ -68,8 +72,6 @@ private:
 	CMenuTable	modList;
 	CMenuModListModel modListModel;
 };
-
-static CMenuCustomGame	uiCustomGame;
 
 void CMenuCustomGame::ChangeGame( void *pExtra )
 {
@@ -145,10 +147,14 @@ void CMenuCustomGame::_Init( void )
 {
 	banner.SetPicture( ART_BANNER );
 
+	msgBox.SetMessage( L( "GameUI_ForceGameRestart" ) );
+	msgBox.onPositive = MenuCb( &CMenuCustomGame::ChangeGame );
+	msgBox.Link( this );
+
 	AddItem( background );
 	AddItem( banner );
 	load = AddButton( L( "Activate" ), L( "Activate selected custom game" ), PC_ACTIVATE,
-		msgBox.MakeOpenEvent() );
+		VoidCb( &CMenuCustomGame::ShowDialog ) );
 
 	go2url = AddButton( L( "Visit web site" ), L( "Visit the web site of game developers" ), PC_VISIT_WEB_SITE,
 		MenuCb( &CMenuCustomGame::Go2Site ) );
@@ -162,10 +168,6 @@ void CMenuCustomGame::_Init( void )
 	modList.SetupColumn( 3, L( "Size" ), 0.15f );
 	modList.SetModel( &modListModel );
 	modList.SetRect( 360, 230, -20, 465 );
-
-	msgBox.SetMessage( L( "GameUI_ForceGameRestart" ) );
-	msgBox.onPositive = MenuCb( &CMenuCustomGame::ChangeGame );
-	msgBox.Link( this );
 
 	AddItem( modList );
 
@@ -181,27 +183,4 @@ void CMenuCustomGame::_Init( void )
 	}
 }
 
-/*
-=================
-UI_CustomGame_Precache
-=================
-*/
-void UI_CustomGame_Precache( void )
-{
-	EngFuncs::PIC_Load( ART_BANNER );
-}
-
-/*
-=================
-UI_CustomGame_Menu
-=================
-*/
-void UI_CustomGame_Menu( void )
-{
-	// current instance is not support game change
-	if( !EngFuncs::GetCvarFloat( "host_allow_changegame" ))
-		return;
-
-	uiCustomGame.Show();
-}
-ADD_MENU( menu_customgame, UI_CustomGame_Precache, UI_CustomGame_Menu );
+ADD_MENU( menu_customgame, CMenuCustomGame, UI_CustomGame_Menu );

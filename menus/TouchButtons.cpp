@@ -18,7 +18,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 #include "BaseMenu.h" // ADD_MENU
-#ifndef XASH_DISABLE_FWGS_EXTENSIONS
 #include "Framework.h"
 #include "mobility_int.h"
 #include "Bitmap.h"
@@ -35,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 class CMenuTouchButtons : public CMenuFramework
 {
 public:
-	CMenuTouchButtons() : CMenuFramework( "CMenuTouchButtons" ) { }
+	CMenuTouchButtons() : CMenuFramework( "CMenuTouchButtons" ), model( this ) { }
 
 private:
 	void _Init() override;
@@ -98,7 +97,7 @@ public:
 	class CButtonListModel : public CStringArrayModel
 	{
 	public:
-		CButtonListModel() : CStringArrayModel( (const char*)&buttons, sizeof( buttons[0] ), 0 ) {}
+		CButtonListModel( CMenuTouchButtons *parent ) : CStringArrayModel( (const char*)&buttons, sizeof( buttons[0] ), 0 ), parent( parent ) {}
 
 		void Update() override;
 		void AddButtonToList( const char *name, const char *texture, const char *command, unsigned char *color, int flags );
@@ -114,15 +113,13 @@ public:
 
 		bool gettingList;
 		bool initialized;
+		CMenuTouchButtons *parent;
 	} model;
 	CMenuTable buttonList;
 
 	// prompt dialog
 	CMenuYesNoMessageBox msgBox;
 };
-
-static CMenuTouchButtons uiTouchButtons;
-
 
 void CMenuTouchButtons::CButtonListModel::AddButtonToList( const char *name, const char *texture, const char *command, unsigned char *color, int flags )
 {
@@ -138,13 +135,6 @@ void CMenuTouchButtons::CButtonListModel::AddButtonToList( const char *name, con
 	buttons[i].iFlags = flags;
 }
 
-// Engine callback
-extern "C" EXPORT void AddTouchButtonToList( const char *name, const char *texture, const char *command, unsigned char *color, int flags )
-{
-	uiTouchButtons.model.AddButtonToList( name, texture, command, color, flags );
-}
-
-
 void CMenuTouchButtons::CButtonListModel::Update()
 {
 	if( !initialized )
@@ -158,7 +148,7 @@ void CMenuTouchButtons::CButtonListModel::Update()
 	EngFuncs::ClientCmd( TRUE, "touch_list\n" );
 	gettingList = false;
 
-	uiTouchButtons.UpdateFields();
+	parent->UpdateFields();
 }
 
 void CMenuTouchButtons::CMenuColor::Draw()
@@ -349,15 +339,6 @@ void CMenuTouchButtons::ResetMsgBox()
 	msgBox.Show();
 }
 
-void CMenuTouchButtons::FileDialogCallback( bool success )
-{
-	if( success )
-	{
-		uiTouchButtons.texture.SetBuffer( uiFileDialogGlobal.result );
-		uiTouchButtons.UpdateTexture();
-	}
-}
-
 void CMenuTouchButtons::ExitMenuCb(CMenuBaseItem *pSelf, void *pExtra)
 {
 	const char *cmd = (const char *)pExtra;
@@ -534,15 +515,15 @@ void CMenuTouchButtons::_VidInit()
 	remove.SetRect( 384 - 72 + 480, 550, 130, 50 );
 }
 
-/*
-=================
-UI_TouchButtons_Precache
-=================
-*/
-void UI_TouchButtons_Precache( void )
+ADD_MENU3( menu_touchbuttons, CMenuTouchButtons, UI_TouchButtons_Menu );
+
+void CMenuTouchButtons::FileDialogCallback( bool success )
 {
-	EngFuncs::PIC_Load( ART_BANNER );
-	uiTouchButtons.model.gettingList = false; // prevent filling list before init
+	if( success )
+	{
+		menu_touchbuttons->texture.SetBuffer( uiFileDialogGlobal.result );
+		menu_touchbuttons->UpdateTexture();
+	}
 }
 
 /*
@@ -553,25 +534,16 @@ UI_TouchButtons_Menu
 void UI_TouchButtons_Menu( void )
 {
 	UI_TouchButtons_GetButtonList();
-	uiTouchButtons.Show();
+	menu_touchbuttons->Show();
 }
 
 void UI_TouchButtons_GetButtonList()
 {
-	uiTouchButtons.model.Update();
+	menu_touchbuttons->model.Update();
 }
-ADD_MENU( menu_touchbuttons, UI_TouchButtons_Precache, UI_TouchButtons_Menu );
-#else // XASH_DISABLE_FWGS_EXTENSIONS
-void UI_TouchButtons_Menu( void )
+
+// Engine callback
+extern "C" EXPORT void AddTouchButtonToList( const char *name, const char *texture, const char *command, unsigned char *color, int flags )
 {
-	// stub
+	menu_touchbuttons->model.AddButtonToList( name, texture, command, color, flags );
 }
-
-void UI_TouchButtons_GetButtonList( void )
-{
-	// stub
-}
-
-ADD_MENU( menu_touchbuttons, NULL, UI_TouchButtons_Menu );
-
-#endif // XASH_DISABLE_FWGS_EXTENSIONS

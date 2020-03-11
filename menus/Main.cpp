@@ -83,11 +83,9 @@ private:
 	bool bCustomGame;
 };
 
-static CMenuMain uiMain;
-
 void CMenuMain::CMenuMainBanner::Draw()
 {
-	if( !uiMain.background.ShouldDrawLogoMovie() )
+	if( !CMenuBackgroundBitmap::ShouldDrawLogoMovie() )
 		return; // no logos for steam background
 
 	if( EngFuncs::GetLogoLength() <= 0.05f || EngFuncs::GetLogoWidth() <= 32 )
@@ -335,7 +333,7 @@ void CMenuMain::VidInit( bool connected )
 	hazardCourse.SetCoord( 72, 330 );
 
 	bool isGameLoaded = EngFuncs::GetCvarFloat( "host_gameloaded" ) != 0.0f;
-	bool isSingle = EngFuncs::GetCvarFloat( "maxplayers" ) <= 1.0f;
+	bool isSingle = EngFuncs::GetCvarFloat( "maxplayers" ) < 2.0f;
 
 	if( isGameLoaded && isSingle )
 	{
@@ -351,12 +349,16 @@ void CMenuMain::VidInit( bool connected )
 	if( connected )
 	{
 		resumeGame.Show();
-		if( !isGameLoaded || !isSingle )
+		if( !isGameLoaded && !isSingle )
 		{
 			disconnect.Show();
 			console.pos.y = 130;
 		}
-		else console.pos.y = 180;
+		else
+		{
+			disconnect.Hide();
+			console.pos.y = 180;
+		}
 	}
 	else
 	{
@@ -380,31 +382,4 @@ void CMenuMain::_VidInit()
 	VidInit( CL_IsActive() );
 }
 
-/*
-=================
-UI_Main_Precache
-=================
-*/
-void UI_Main_Precache( void )
-{
-	EngFuncs::PIC_Load( ART_MINIMIZE_N );
-	EngFuncs::PIC_Load( ART_MINIMIZE_F );
-	EngFuncs::PIC_Load( ART_MINIMIZE_D );
-	EngFuncs::PIC_Load( ART_CLOSEBTN_N );
-	EngFuncs::PIC_Load( ART_CLOSEBTN_F );
-	EngFuncs::PIC_Load( ART_CLOSEBTN_D );
-
-	// precache .avi file and get logo width and height
-	EngFuncs::PrecacheLogo( "logo.avi" );
-}
-
-/*
-=================
-UI_Main_Menu
-=================
-*/
-void UI_Main_Menu( void )
-{
-	uiMain.Show();
-}
-ADD_MENU( menu_main, UI_Main_Precache, UI_Main_Menu );
+ADD_MENU( menu_main, CMenuMain, UI_Main_Menu );

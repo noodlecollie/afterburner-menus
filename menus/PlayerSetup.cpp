@@ -41,18 +41,18 @@ static struct
 	unsigned char b;
 } g_LogoColors[] =
 {
-{ "#Valve_Orange", 255, 120, 24  },
-{ "#Valve_Yellow",	225, 180, 24  },
-{ "#Valve_Blue",   0,   60,  255 },
-{ "#Valve_Ltblue", 0,   167, 255 },
-{ "#Valve_Green",  0,   167, 0   },
-{ "#Valve_Red",    255, 43,  0   },
-{ "#Valve_Brown",  123, 73,  0   },
-{ "#Valve_Ltgray", 100, 100, 100 },
-{ "#Valve_Dkgray", 36,  36,  36  },
+{ "#Valve_Orange", 255, 120, 24  }, // L( "#Valve_Orange" )
+{ "#Valve_Yellow", 225, 180, 24  }, // L( "#Valve_Yellow" )
+{ "#Valve_Blue",   0,   60,  255 }, // L( "#Valve_Blue" )
+{ "#Valve_Ltblue", 0,   167, 255 }, // L( "#Valve_Ltblue" )
+{ "#Valve_Green",  0,   167, 0   }, // L( "#Valve_Green" )
+{ "#Valve_Red",    255, 43,  0   }, // L( "#Valve_Red" )
+{ "#Valve_Brown",  123, 73,  0   }, // L( "#Valve_Brown" )
+{ "#Valve_Ltgray", 100, 100, 100 }, // L( "#Valve_Ltgray" )
+{ "#Valve_Dkgray", 36,  36,  36  }, // L( "#Valve_Dkgray" )
 };
 
-static class CMenuPlayerSetup : public CMenuFramework
+class CMenuPlayerSetup : public CMenuFramework
 {
 private:
 	void _Init() override;
@@ -112,7 +112,7 @@ public:
 	CMenuYesNoMessageBox msgBox;
 
 	bool hideModels, hideLogos;
-} uiPlayerSetup;
+};
 
 void CMenuPlayerSetup::CMenuLogoPreview::Draw()
 {
@@ -250,11 +250,8 @@ void CMenuPlayerSetup::UpdateModel()
 	}
 
 	snprintf( image, 256, "models/player/%s/%s.bmp", mdl, mdl );
-#ifdef PIC_KEEP_SOURCE
 	view.hPlayerImage = EngFuncs::PIC_Load( image, PIC_KEEP_SOURCE );
-#else
-	view.hPlayerImage = EngFuncs::PIC_Load( image, PIC_KEEP_8BIT );
-#endif
+
 	ApplyColorToImagePreview();
 	EngFuncs::CvarSetString( "model", mdl );
 
@@ -303,7 +300,7 @@ void CMenuPlayerSetup::ApplyColorToLogoPreview()
 {
 	const char *logoColorStr = logoColor.GetCurrentString();
 
-	for( size_t i = 0; i < ARRAYSIZE( g_LogoColors ) && logoColorStr; i++ )
+	for( size_t i = 0; i < V_ARRAYSIZE( g_LogoColors ) && logoColorStr; i++ )
 	{
 		if( !stricmp( logoColorStr, L( g_LogoColors[i].name )))
 		{
@@ -314,9 +311,10 @@ void CMenuPlayerSetup::ApplyColorToLogoPreview()
 		}
 	}
 
-	logoImage.r = 255;
-	logoImage.g = 255;
-	logoImage.b = 255;
+	logoColor.SetCurrentValue( L( g_LogoColors[0].name ) );
+	logoImage.r = g_LogoColors[0].r;
+	logoImage.g = g_LogoColors[0].g;
+	logoImage.b = g_LogoColors[0].b;
 }
 
 void CMenuPlayerSetup::WriteNewLogo( void )
@@ -452,9 +450,9 @@ void CMenuPlayerSetup::_Init( void )
 		}
 		else
 		{
-			static const char *itemlist[ARRAYSIZE( g_LogoColors )];
-			static CStringArrayModel colors( itemlist, ARRAYSIZE( g_LogoColors ) );
-			for( size_t i = 0; i < ARRAYSIZE( g_LogoColors ); i++ )
+			static const char *itemlist[V_ARRAYSIZE( g_LogoColors )];
+			static CStringArrayModel colors( itemlist, V_ARRAYSIZE( g_LogoColors ) );
+			for( size_t i = 0; i < V_ARRAYSIZE( g_LogoColors ); i++ )
 				itemlist[i] = L( g_LogoColors[i].name );
 
 			logoImage.SetRect( 72, 230 + m_iBtnsNum * 50 + 10, 200, 200 );
@@ -503,26 +501,4 @@ void CMenuPlayerSetup::Reload()
 	if( !hideModels ) UpdateModel();
 }
 
-/*
-=================
-UI_PlayerSetup_Precache
-=================
-*/
-void UI_PlayerSetup_Precache( void )
-{
-	EngFuncs::PIC_Load( ART_BANNER );
-}
-
-/*
-=================
-UI_PlayerSetup_Menu
-=================
-*/
-void UI_PlayerSetup_Menu( void )
-{
-	if ( gMenu.m_gameinfo.gamemode == GAME_SINGLEPLAYER_ONLY )
-		return;
-
-	uiPlayerSetup.Show();
-}
-ADD_MENU( menu_playersetup, UI_PlayerSetup_Precache, UI_PlayerSetup_Menu );
+ADD_MENU( menu_playersetup, CMenuPlayerSetup, UI_PlayerSetup_Menu );

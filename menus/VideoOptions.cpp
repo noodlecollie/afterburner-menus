@@ -52,13 +52,11 @@ public:
 	CMenuSlider	gammaIntensity;
 	CMenuSlider	glareReduction;
 	CMenuCheckBox	fastSky;
-	CMenuCheckBox	hiTextures;
 	CMenuCheckBox   vbo;
 	CMenuCheckBox   bump;
 
 	HIMAGE		hTestImage;
-} uiVidOptions;
-
+};
 
 /*
 =================
@@ -67,19 +65,19 @@ CMenuVidOptions::GammaUpdate
 */
 void CMenuVidOptions::GammaUpdate( void )
 {
-	float val = RemapVal( uiVidOptions.gammaIntensity.GetCurrentValue(), 0.0, 1.0, 1.8, 7.0 );
+	float val = RemapVal( gammaIntensity.GetCurrentValue(), 0.0, 1.0, 1.8, 7.0 );
 	EngFuncs::CvarSetValue( "gamma", val );
-	EngFuncs::ProcessImage( uiVidOptions.hTestImage, val );
+	EngFuncs::ProcessImage( hTestImage, val );
 }
 
 void CMenuVidOptions::GammaGet( void )
 {
 	float val = EngFuncs::GetCvarFloat( "gamma" );
 
-	uiVidOptions.gammaIntensity.SetCurrentValue( RemapVal( val, 1.8f, 7.0f, 0.0f, 1.0f ) );
-	EngFuncs::ProcessImage( uiVidOptions.hTestImage, val );
+	gammaIntensity.SetCurrentValue( RemapVal( val, 1.8f, 7.0f, 0.0f, 1.0f ) );
+	EngFuncs::ProcessImage( hTestImage, val );
 
-	uiVidOptions.gammaIntensity.SetOriginalValue( val );
+	gammaIntensity.SetOriginalValue( val );
 }
 
 void CMenuVidOptions::SaveAndPopMenu( void )
@@ -87,7 +85,6 @@ void CMenuVidOptions::SaveAndPopMenu( void )
 	screenSize.WriteCvar();
 	glareReduction.WriteCvar();
 	fastSky.WriteCvar();
-	hiTextures.WriteCvar();
 	vbo.WriteCvar();
 	bump.WriteCvar();
 	// gamma is already written
@@ -161,7 +158,6 @@ void CMenuVidOptions::_Init( void )
 	screenSize.SetNameAndStatus( L( "Screen size" ), L( "Set the screen size" ) );
 	screenSize.SetCoord( 72, 280 );
 	screenSize.Setup( 30, 120, 10 );
-	screenSize.LinkCvar( "viewsize" );
 	screenSize.onChanged = CMenuEditable::WriteCvarCb;
 
 	gammaIntensity.SetNameAndStatus( L( "GameUI_Gamma" ), L( "Set gamma value (0.5 - 2.3)" ) );
@@ -169,31 +165,18 @@ void CMenuVidOptions::_Init( void )
 	gammaIntensity.Setup( 0.0, 1.0, 0.025 );
 	gammaIntensity.onChanged = VoidCb( &CMenuVidOptions::GammaUpdate );
 	gammaIntensity.onCvarGet = VoidCb( &CMenuVidOptions::GammaGet );
-	gammaIntensity.LinkCvar( "gamma" );
 
 	glareReduction.SetCoord( 72, 400 );
-	if( UI_IsXashFWGS() )
-	{
-		glareReduction.SetNameAndStatus( L( "Glare reduction" ), L( "Set glare reduction level" ) );
-		glareReduction.Setup( 100, 300, 15 );
-		glareReduction.LinkCvar( "r_flaresize" );
-	}
-	else
-	{
-		glareReduction.SetNameAndStatus( L( "GameUI_Brightness" ), L( "Set brightness level" ) );
-		glareReduction.Setup( 0, 3, 0.1 );
-		glareReduction.LinkCvar( "brightness" );
-	}
+	glareReduction.SetNameAndStatus( L( "GameUI_Brightness" ), L( "Set brightness level" ) );
+	glareReduction.Setup( 0, 3, 0.1 );
 
 	bump.SetNameAndStatus( L( "Bump-mapping" ), L( "Enable bump mapping" ) );
 	bump.SetCoord( 72, 515 );
-	bump.LinkCvar( "r_bump" );
 	if( !EngFuncs::GetCvarFloat( "r_vbo" ) )
 		bump.SetGrayed( true );
 
 	vbo.SetNameAndStatus( L( "Use VBO" ), L( "Use new world renderer. Faster, but rarely glitchy" ) );
 	vbo.SetCoord( 72, 565 );
-	vbo.LinkCvar( "r_vbo" );
 	vbo.onChanged = CMenuCheckBox::BitMaskCb;
 	vbo.onChanged.pExtra = &bump.iFlags;
 	vbo.bInvertMask = true;
@@ -201,11 +184,6 @@ void CMenuVidOptions::_Init( void )
 
 	fastSky.SetNameAndStatus( L( "Draw simple sky" ), L( "enable/disable fast sky rendering (for old computers)" ) );
 	fastSky.SetCoord( 72, 615 );
-	fastSky.LinkCvar( "r_fastsky" );
-
-	hiTextures.SetNameAndStatus( L( "Allow materials" ), L( "let engine replace 8-bit textures with full color hi-res prototypes (if present)" ) );
-	hiTextures.SetCoord( 72, 665 );
-	hiTextures.LinkCvar( "host_allow_materials" );
 
 	AddItem( background );
 	AddItem( banner );
@@ -219,8 +197,14 @@ void CMenuVidOptions::_Init( void )
 		AddItem( vbo );
 	}
 	AddItem( fastSky );
-	AddItem( hiTextures );
 	AddItem( testImage );
+	screenSize.LinkCvar( "viewsize" );
+	gammaIntensity.LinkCvar( "gamma" );
+	glareReduction.LinkCvar( "brightness" );
+	bump.LinkCvar( "r_bump" );
+	vbo.LinkCvar( "r_vbo" );
+	fastSky.LinkCvar( "r_fastsky" );
+
 }
 
 void CMenuVidOptions::_VidInit()
@@ -229,23 +213,4 @@ void CMenuVidOptions::_VidInit()
 	UI_ScaleCoords( NULL, NULL, &outlineWidth, NULL );
 }
 
-/*
-=================
-CMenuVidOptions::Precache
-=================
-*/
-void UI_VidOptions_Precache( void )
-{
-	EngFuncs::PIC_Load( ART_BANNER );
-}
-
-/*
-=================
-CMenuVidOptions::Menu
-=================
-*/
-void UI_VidOptions_Menu( void )
-{
-	uiVidOptions.Show();
-}
-ADD_MENU( menu_vidoptions, UI_VidOptions_Precache, UI_VidOptions_Menu );
+ADD_MENU( menu_vidoptions, CMenuVidOptions, UI_VidOptions_Menu );
