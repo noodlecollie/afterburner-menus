@@ -176,6 +176,8 @@ public:
 	{ return engfuncs.COM_LoadFile( filename, pLength ); }
 	static inline char*	COM_ParseFile( char *data, char *token )
 	{ return engfuncs.COM_ParseFile( data, token ); }
+	static inline char*	COM_ParseFileSafe( char* data, char* token, size_t tokenLength )
+	{ return engfuncs.COM_ParseFileSafe( data, token, tokenLength ); }
 	static inline void	COM_FreeFile( void *buffer )
 	{  engfuncs.COM_FreeFile( buffer ); }
 
@@ -272,7 +274,7 @@ public:
 	{
 		return textfuncs.pfnGetRenderers( num, sz1, s1, sz2, s2 ) != 0;
 	}
-	
+
 	static inline double DoubleTime()
 	{
 		return textfuncs.pfnDoubleTime();
