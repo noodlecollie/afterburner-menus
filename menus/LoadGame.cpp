@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define LEVELSHOT_W		192
 #define LEVELSHOT_H		160
 
-#define MAX_CELLSTRING 64
+#define MAX_CELLSTRING CS_SIZE
 
 class CMenuLoadGame;
 
@@ -174,7 +174,7 @@ void CMenuSavesListModel::Update( void )
 	for ( j = 0; j < numFiles; i++, j++ )
 	{
 		if( i >= UI_MAXGAMES ) break;
-		
+
 		if( !EngFuncs::GetSaveComment( filenames[j], comment ))
 		{
 			if( comment[0] )
@@ -194,10 +194,44 @@ void CMenuSavesListModel::Update( void )
 		COM_FileBase( filenames[j], saveName[i] );
 		COM_FileBase( filenames[j], delName[i] );
 
+		// they are defined by comment string format
+		const char *time = comment + CS_SIZE;
+		const char *date = comment + CS_SIZE + CS_TIME;
+		const char *elapsedTime = comment + CS_SIZE + CS_TIME * 2;
+
+		char *title = comment;
+		char type[CS_SIZE] = {}, *p = nullptr;
+		const char *translated_title = nullptr;
+
+		// if comments begin with [ and there is second ]
+		if( comment[0] == '[' && ( p = strchr( comment, ']' )))
+		{
+			title = p + 1;
+			Q_strncpy( type, comment, title - comment + 1 );
+		}
+
+		if( *title == '#' )
+		{
+			// strip everything after first space
+			char s[CS_SIZE];
+
+			p = strchr( title, ' ' );
+
+			size_t len = p ? (p - title + 1) : ( CS_SIZE - ( title - comment ));
+
+			Q_strncpy( s, title, len );
+			translated_title = L( s );
+		}
+		else
+		{
+			translated_title = title;
+		}
+
 		// fill save desc
-		snprintf( m_szCells[i][0], MAX_CELLSTRING, "%s %s", comment + CS_SIZE, comment + CS_SIZE + CS_TIME );
-		Q_strncpy( m_szCells[i][1], comment, MAX_CELLSTRING );
-		Q_strncpy( m_szCells[i][2], comment + CS_SIZE + (CS_TIME * 2), MAX_CELLSTRING );
+		snprintf( m_szCells[i][0], MAX_CELLSTRING, "%s %s", time, date );
+		snprintf( m_szCells[i][1], MAX_CELLSTRING, "%s%s", type, translated_title );
+		Q_strncpy( m_szCells[i][2], elapsedTime, MAX_CELLSTRING );
+
 	}
 
 	m_iNumItems = i;
