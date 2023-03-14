@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "Switch.h"
 #include "Field.h"
 #include "utlvector.h"
+#include "CheckBox.h"
 
 #define ART_BANNER_INET		"gfx/shell/head_inetgames"
 #define ART_BANNER_LAN		"gfx/shell/head_lan"
@@ -32,70 +33,89 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 class CMenuServerBrowser;
 
+enum
+{
+	COLUMN_PASSWORD = 0,
+	COLUMN_NAME,
+	COLUMN_MAP,
+	COLUMN_PLAYERS,
+	COLUMN_PING,
+	COLUMN_IP
+};
+
 struct server_t
 {
 	netadr_t adr;
-	char info[256];
+	char  info[256];
 	float ping;
+	int  numcl;
+	int  maxcl;
 	char name[64];
 	char mapname[64];
 	char clientsstr[64];
 	char pingstr[64];
+	char ipstr[64];
 	bool havePassword;
 	bool isLegacy;
 
-	static int NameCmpAscend( const void *_a, const void *_b )
-	{
-		const server_t *a = (const server_t*)_a;
-		const server_t *b = (const server_t*)_b;
-		return colorstricmp( a->name, b->name );
-	}
-	static int NameCmpDescend( const void *a, const void *b )
-	{
-		return NameCmpAscend( b, a );
-	}
+	server_t( netadr_t adr, const char *info );
+	void UpdateData();
+	void SetPing( float ping );
 
-	static int MapCmpAscend( const void *_a, const void *_b )
+	int Rank( const server_t &other ) const
 	{
-		const server_t *a = (const server_t*)_a;
-		const server_t *b = (const server_t*)_b;
-		return stricmp( a->mapname, b->mapname );
-	}
-	static int MapCmpDescend( const void *a, const void *b )
-	{
-		return MapCmpAscend( b, a );
-	}
-
-	static int ClientCmpAscend( const void *_a, const void *_b )
-	{
-		const server_t *a = (const server_t*)_a;
-		const server_t *b = (const server_t*)_b;
-
-		int a_cl = atoi( Info_ValueForKey( a->info, "numcl" ));
-		int b_cl = atoi( Info_ValueForKey( b->info, "numcl" ));
-
-		if( a_cl > b_cl ) return 1;
-		else if( a_cl < b_cl ) return -1;
+		if( isLegacy > other.isLegacy ) return 100;
+		else if( isLegacy < other.isLegacy ) return -100;
 		return 0;
 	}
-	static int ClientCmpDescend( const void *a, const void *b )
+
+	int NameCmp( const server_t &other ) const
 	{
-		return ClientCmpAscend( b, a );
+		return colorstricmp( name, other.name );
 	}
 
-	static int PingCmpAscend( const void *_a, const void *_b )
+	int AdrCmp( const server_t &other ) const
 	{
-		const server_t *a = (const server_t*)_a;
-		const server_t *b = (const server_t*)_b;
+		return EngFuncs::NET_CompareAdr( &adr, &other.adr );
+	}
 
-		if( a->ping > b->ping ) return 1;
-		else if( a->ping < b->ping ) return -1;
+	int MapCmp( const server_t &other ) const
+	{
+		return stricmp( mapname, other.mapname );
+	}
+
+	int ClientCmp( const server_t &other ) const
+	{
+		if( numcl > other.numcl ) return 1;
+		else if( numcl < other.numcl ) return -1;
 		return 0;
 	}
-	static int PingCmpDescend( const void *a, const void *b )
+
+	int PingCmp( const server_t &other ) const
 	{
-		return PingCmpAscend( b, a );
+		if( ping > other.ping ) return 1;
+		else if( ping < other.ping ) return -1;
+		return 0;
 	}
+
+	// make generic
+	// always rank new servers higher, even when sorting in reverse order
+#define GENERATE_COMPAR_FN( method ) \
+	static int method ## Ascend( const void *a, const void *b ) \
+	{\
+		return (( const server_t *)a)->Rank( *(( const server_t *)b) ) + (( const server_t *)a)->method( *(( const server_t *)b) );\
+	}\
+	static int method ## Descend( const void *a, const void *b ) \
+	{\
+		return (( const server_t *)a)->Rank( *(( const server_t *)b) ) + (( const server_t *)b)->method( *(( const server_t *)a) );\
+	}\
+
+	GENERATE_COMPAR_FN( NameCmp )
+	GENERATE_COMPAR_FN( AdrCmp )
+	GENERATE_COMPAR_FN( MapCmp )
+	GENERATE_COMPAR_FN( ClientCmp )
+	GENERATE_COMPAR_FN( PingCmp )
+#undef GENERATE_COMPAR_FN
 };
 
 class CMenuGameListModel : public CMenuBaseModel
@@ -104,46 +124,55 @@ public:
 	CMenuGameListModel( CMenuServerBrowser *parent ) : CMenuBaseModel(), parent( parent ), m_iSortingColumn(-1) {}
 
 	void Update() override;
+
 	int GetColumns() const override
 	{
-		return 5; // havePassword, game, mapname, maxcl, ping
+		return 6; // havePassword, game, mapname, maxcl, ping, (hidden)ip
 	}
+
 	int GetRows() const override
 	{
 		return servers.Count();
 	}
+
 	ECellType GetCellType( int line, int column ) override
 	{
 		if( column == 0 )
 			return CELL_IMAGE_ADDITIVE;
 		return CELL_TEXT;
 	}
+
 	const char *GetCellText( int line, int column ) override
 	{
 		switch( column )
 		{
-		case 0: return servers[line].havePassword ? ART_BANNER_LOCK : NULL;
-		case 1: return servers[line].name;
-		case 2: return servers[line].mapname;
-		case 3: return servers[line].clientsstr;
-		case 4: return servers[line].pingstr;
+		case COLUMN_PASSWORD: return servers[line].havePassword ? ART_BANNER_LOCK : NULL;
+		case COLUMN_NAME: return servers[line].name;
+		case COLUMN_MAP: return servers[line].mapname;
+		case COLUMN_PLAYERS: return servers[line].clientsstr;
+		case COLUMN_PING: return servers[line].pingstr;
+		case COLUMN_IP: return servers[line].ipstr;
 		default: return NULL;
 		}
 	}
-	bool GetCellColors(int line, int column, unsigned int &textColor, bool &force) const override
+
+	bool GetCellColors( int line, int column, unsigned int &textColor, bool &force) const override
 	{
 		if( servers[line].isLegacy )
 		{
 			CColor color = uiPromptTextColor;
-			color.a = color.a * 0.7;
+			color.a = color.a * 0.5;
 			textColor = color;
-			force = true;
+
+			// allow colorstrings only in server name
+			force = column != COLUMN_NAME;
+
 			return true;
 		}
 		return false;
 	}
 
-	void OnActivateEntry(int line) override;
+	void OnActivateEntry( int line ) override;
 
 	void Flush()
 	{
@@ -158,7 +187,7 @@ public:
 
 	void AddServerToList( netadr_t adr, const char *info );
 
-	bool Sort(int column, bool ascend) override;
+	bool Sort( int column, bool ascend ) override;
 
 	float serversRefreshTime;
 	CUtlVector<server_t> servers;
@@ -175,6 +204,7 @@ public:
 	CMenuServerBrowser() : CMenuFramework( "CMenuServerBrowser" ), gameListModel( this ) { }
 	void Draw() override;
 	void Show() override;
+	bool KeyUp( int key ) override;
 
 	void SetLANOnly( bool lanOnly )
 	{
@@ -186,7 +216,7 @@ public:
 	void JoinGame( void );
 	void ResetPing( void )
 	{
-		gameListModel.serversRefreshTime = Sys_DoubleTime();
+		gameListModel.serversRefreshTime = EngFuncs::DoubleTime();
 	}
 
 	void AddServerToList( netadr_t adr, const char *info );
@@ -201,6 +231,7 @@ public:
 	CMenuYesNoMessageBox msgBox;
 	CMenuTable	gameList;
 	CMenuGameListModel gameListModel;
+	CMenuCheckBox showip;
 
 	CMenuYesNoMessageBox askPassword;
 	CMenuField password;
@@ -214,7 +245,7 @@ private:
 	void _VidInit() override;
 };
 
-static server_t staticServerSelect;
+static server_t staticServerSelect( netadr_t(), "" );
 static bool staticWaitingPassword = false;
 
 ADD_MENU3( menu_internetgames, CMenuServerBrowser, UI_InternetGames_Menu );
@@ -255,6 +286,35 @@ void UI_LanGame_Menu( void )
 	UI_ServerBrowser_Menu();
 }
 
+server_t::server_t( netadr_t adr, const char *info ) :
+	adr( adr )
+{
+	Q_strncpy( this->info, info, sizeof( this->info ));
+}
+
+void server_t::UpdateData( void )
+{
+	Q_strncpy( name, Info_ValueForKey( info, "host" ), sizeof( name ));
+	Q_strncpy( mapname, Info_ValueForKey( info, "map" ), sizeof( mapname ));
+	Q_strncpy( ipstr, EngFuncs::NET_AdrToString( adr ), sizeof( ipstr ));
+	numcl = atoi( Info_ValueForKey( info, "numcl" ));
+	maxcl = atoi( Info_ValueForKey( info, "maxcl" ));
+	snprintf( clientsstr, sizeof( clientsstr ), "%d\\%d", numcl, maxcl );
+	havePassword = !strcmp( Info_ValueForKey( info, "password" ), "1" );
+	isLegacy = !strcmp( Info_ValueForKey( info, "legacy" ), "1" );
+}
+
+void server_t::SetPing( float ping )
+{
+	ping = bound( 0.0f, ping, 9.999f );
+
+	if( isLegacy )
+		ping /= 2;
+
+	this->ping = ping;
+	snprintf( pingstr, sizeof( pingstr ), "%.f ms", ping * 1000 );
+}
+
 bool CMenuGameListModel::Sort(int column, bool ascend)
 {
 	m_iSortingColumn = column;
@@ -264,22 +324,27 @@ bool CMenuGameListModel::Sort(int column, bool ascend)
 	m_bAscend = ascend;
 	switch( column )
 	{
-	case 0: return false;
-	case 1:
+	case COLUMN_PASSWORD:
+		return false;
+	case COLUMN_NAME:
 		qsort( servers.Base(), servers.Count(), sizeof( server_t ),
 			ascend ? server_t::NameCmpAscend : server_t::NameCmpDescend );
 		return true;
-	case 2:
+	case COLUMN_MAP:
 		qsort( servers.Base(), servers.Count(), sizeof( server_t ),
 			ascend ? server_t::MapCmpAscend : server_t::MapCmpDescend );
 		return true;
-	case 3:
+	case COLUMN_PLAYERS:
 		qsort( servers.Base(), servers.Count(), sizeof( server_t ),
 			ascend ? server_t::ClientCmpAscend : server_t::ClientCmpDescend );
 		return true;
-	case 4:
+	case COLUMN_PING:
 		qsort( servers.Base(), servers.Count(), sizeof( server_t ),
 			ascend ? server_t::PingCmpAscend : server_t::PingCmpDescend );
+		return true;
+	case COLUMN_IP:
+		qsort( servers.Base(), servers.Count(), sizeof( server_t ),
+			ascend ? server_t::AdrCmpAscend : server_t::AdrCmpDescend );
 		return true;
 	}
 
@@ -298,19 +363,7 @@ void CMenuGameListModel::Update( void )
 
 	// regenerate table data
 	for( i = 0; i < servers.Count(); i++ )
-	{
-		info = servers[i].info;
-
-		Q_strncpy( servers[i].name, Info_ValueForKey( info, "host" ), 64 );
-		Q_strncpy( servers[i].mapname, Info_ValueForKey( info, "map" ), 64 );
-		snprintf( servers[i].clientsstr, 64, "%s\\%s", Info_ValueForKey( info, "numcl" ), Info_ValueForKey( info, "maxcl" ) );
-		snprintf( servers[i].pingstr, 64, "%.f ms", servers[i].ping * 1000 );
-
-		const char *passwd = Info_ValueForKey( info, "password" );
-		servers[i].havePassword = passwd[0] && !stricmp( passwd, "1");
-		const char *legacy = Info_ValueForKey( info, "legacy" );
-		servers[i].isLegacy = legacy[0] && !stricmp( legacy, "1");
-	}
+		servers[i].UpdateData();
 
 	if( servers.Count() )
 	{
@@ -325,37 +378,25 @@ void CMenuGameListModel::OnActivateEntry( int line )
 	CMenuServerBrowser::Connect( servers[line] );
 }
 
-void CMenuGameListModel::AddServerToList(netadr_t adr, const char *info)
+void CMenuGameListModel::AddServerToList( netadr_t adr, const char *info )
 {
 	int i;
 
 	// ignore if duplicated
 	for( i = 0; i < servers.Count(); i++ )
 	{
+		if( !EngFuncs::NET_CompareAdr( &servers[i].adr, &adr ))
+			return;
+
 		if( !stricmp( servers[i].info, info ))
 			return;
 	}
 
-	server_t server;
+	server_t server( adr, info );
 
-	server.adr = adr;
-	server.ping = Sys_DoubleTime() - serversRefreshTime;
-	server.ping = bound( 0, server.ping, 9.999f );
-	Q_strncpy( server.info, info, sizeof( server.info ));
+	server.UpdateData();
+	server.SetPing( EngFuncs::DoubleTime() - serversRefreshTime );
 
-
-	Q_strncpy( server.name, Info_ValueForKey( info, "host" ), 64 );
-	Q_strncpy( server.mapname, Info_ValueForKey( info, "map" ), 64 );
-	snprintf( server.clientsstr, 64, "%s\\%s", Info_ValueForKey( info, "numcl" ), Info_ValueForKey( info, "maxcl" ) );
-
-
-	const char *passwd = Info_ValueForKey( info, "password" );
-	server.havePassword = passwd[0] && !stricmp( passwd, "1");
-	const char *legacy = Info_ValueForKey( info, "legacy" );
-	server.isLegacy = legacy[0] && !stricmp( legacy, "1");
-	if( server.isLegacy )
-		server.ping /= 2;
-	snprintf( server.pingstr, 64, "%.f ms", server.ping * 1000 );
 	servers.AddToTail( server );
 
 	if( m_iSortingColumn != -1 )
@@ -364,6 +405,8 @@ void CMenuGameListModel::AddServerToList(netadr_t adr, const char *info)
 
 void CMenuServerBrowser::Connect( server_t &server )
 {
+	char buf[256];
+
 	// prevent refresh during connect
 	menu_internetgames->refreshTime = uiStatic.realTime + 999999;
 
@@ -391,9 +434,12 @@ void CMenuServerBrowser::Connect( server_t &server )
 
 	staticWaitingPassword = false;
 
-	//BUGBUG: ClientJoin not guaranted to return, need use ClientCmd instead!!!
-	//BUGBUG: But server addres is known only as netadr_t here!!!
-	EngFuncs::ClientJoin( server.adr );
+	snprintf( buf, sizeof( buf ), "connect %s %s",
+		EngFuncs::NET_AdrToString( server.adr ),
+		server.isLegacy ? "legacy" : "" );
+	buf[sizeof( buf ) - 1] = 0;
+
+	EngFuncs::ClientCmd( FALSE, buf );
 	UI_ConnectionProgress_Connect( "" );
 }
 
@@ -455,6 +501,19 @@ void CMenuServerBrowser::Draw( void )
 	}
 }
 
+bool CMenuServerBrowser::KeyUp( int key )
+{
+	if( key == 'i' )
+	{
+		gameList.SetColumnWidth( COLUMN_IP, 300, true );
+
+		gameList.VidInit();
+		gameListModel.Update();
+	}
+
+	return CMenuFramework::KeyUp( key );
+}
+
 /*
 =================
 CMenuServerBrowser::Init
@@ -493,11 +552,12 @@ void CMenuServerBrowser::_Init( void )
 	msgBox.Link( this );
 
 	gameList.SetCharSize( QM_SMALLFONT );
-	gameList.SetupColumn( 0, NULL, 32.0f, true );
-	gameList.SetupColumn( 1, L( "Name" ), 0.40f );
-	gameList.SetupColumn( 2, L( "GameUI_Map" ), 0.25f );
-	gameList.SetupColumn( 3, L( "Players" ), 100.0f, true );
-	gameList.SetupColumn( 4, L( "Ping" ), 120.0f, true );
+	gameList.SetupColumn( COLUMN_PASSWORD, NULL, 32.0f, true );
+	gameList.SetupColumn( COLUMN_NAME, L( "Name" ), 0.40f );
+	gameList.SetupColumn( COLUMN_MAP, L( "GameUI_Map" ), 0.25f );
+	gameList.SetupColumn( COLUMN_PLAYERS, L( "Players" ), 100.0f, true );
+	gameList.SetupColumn( COLUMN_PING, L( "Ping" ), 120.0f, true );
+	gameList.SetupColumn( COLUMN_IP, L( "IP" ), 0, true );
 	gameList.SetModel( &gameListModel );
 	gameList.bFramedHintText = true;
 	gameList.bAllowSorting = true;
@@ -592,11 +652,11 @@ void CMenuServerBrowser::Show()
 	// clear out server table
 	staticWaitingPassword = false;
 	gameListModel.Flush();
-	gameList.DisableSorting();
+	gameList.SetSortingColumn( COLUMN_PING );
 	joinGame->SetGrayed( true );
 }
 
-void CMenuServerBrowser::AddServerToList(netadr_t adr, const char *info)
+void CMenuServerBrowser::AddServerToList( netadr_t adr, const char *info )
 {
 	if( stricmp( gMenu.m_gameinfo.gamefolder, Info_ValueForKey( info, "gamedir" )) != 0 )
 		return;
@@ -632,7 +692,6 @@ UI_MenuResetPing_f
 */
 void UI_MenuResetPing_f( void )
 {
-	Con_Printf("UI_MenuResetPing_f\n");
 	if( menu_internetgames )
 		menu_internetgames->ResetPing();
 }

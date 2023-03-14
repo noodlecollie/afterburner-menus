@@ -84,17 +84,17 @@ void CFontManager::VidInit( void )
 			.SetHandleNum( QM_BOLDFONT )
 			.Create();
 
-#ifdef MAINUI_RENDER_PICBUTTON_TEXT
-		uiStatic.hLightBlur = CFontBuilder( DEFAULT_MENUFONT, UI_MED_CHAR_HEIGHT * scale, 1000 )
-			.SetHandleNum( QM_LIGHTBLUR )
-			.SetBlurParams( 2, 1.0f )
-			.Create();
+		if( !uiStatic.lowmemory )
+		{
+			uiStatic.hLightBlur = CFontBuilder( DEFAULT_MENUFONT, UI_MED_CHAR_HEIGHT * scale, 1000 )
+				.SetBlurParams( 2, 1.0f )
+				.Create();
 
-		uiStatic.hHeavyBlur = CFontBuilder( DEFAULT_MENUFONT, UI_MED_CHAR_HEIGHT * scale, 1000 )
-			.SetHandleNum( QM_HEAVYBLUR )
-			.SetBlurParams( 8, 1.75f )
-			.Create();
-#endif
+			uiStatic.hHeavyBlur = CFontBuilder( DEFAULT_MENUFONT, UI_MED_CHAR_HEIGHT * scale, 1000 )
+				.SetBlurParams( 8, 1.75f )
+				.Create();
+		}
+
 		uiStatic.hConsoleFont = CFontBuilder( DEFAULT_CONFONT, UI_CONSOLE_CHAR_HEIGHT * scale, 500 )
 			.SetOutlineSize()
 			.Create();
@@ -116,7 +116,7 @@ void CFontManager::DeleteFont(HFont hFont)
 	CBaseFont *font = GetIFontFromHandle(hFont);
 	if( font )
 	{
-		m_Fonts[hFont] = NULL;
+		m_Fonts[hFont-1] = NULL;
 
 		delete font;
 	}
@@ -498,7 +498,7 @@ HFont CFontBuilder::Create()
 	font = new CBitmapFont();
 #endif
 
-	double starttime = Sys_DoubleTime();
+	double starttime = EngFuncs::DoubleTime();
 
 	if( !font->Create( m_szName, m_iTall, m_iWeight, m_iBlur, m_fBrighten, m_iOutlineSize, m_iScanlineOffset, m_fScanlineScale, m_iFlags ) )
 	{
@@ -517,7 +517,7 @@ HFont CFontBuilder::Create()
 
 	g_FontMgr->UploadTextureForFont( font );
 
-	double endtime = Sys_DoubleTime();
+	double endtime = EngFuncs::DoubleTime();
 
 	Con_DPrintf( "Rendering %s(%i, %i) took %f seconds\n", font->GetName(), m_iTall, m_iWeight, endtime - starttime );
 

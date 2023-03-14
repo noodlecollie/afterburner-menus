@@ -62,7 +62,7 @@ def configure(conf):
 		conf.check_cxx(lib='rt', mandatory=False)
 
 def build(bld):
-	libs = []
+	libs = [ 'sdk_includes' ]
 
 	# basic build: dedicated only, no dependencies
 	if bld.env.DEST_OS != 'win32':
@@ -94,11 +94,6 @@ def build(bld):
 		'controls/',
 		'menus/',
 		'model/',
-		'projectInterface_mainui/',
-		'../common',
-		'../engine',
-		'../pm_shared',
-		'../game_menu_shared'
 	]
 
 	bld.shlib(

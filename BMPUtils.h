@@ -55,13 +55,13 @@ class CBMP
 {
 public:
 	static CBMP* LoadFile( const char *filename ); // implemented in library!
-	
+
 	CBMP( uint w, uint h )
 	{
 		bmp_t bhdr;
 
-		const size_t cbPalBytes = 0; // UNUSED
-		const uint pixel_size = 4; // Always RGBA
+		const size_t cbPalBytes = 0;
+		const uint pixel_size = 4; // RGBA
 
 		bhdr.id[0] = 'B';
 		bhdr.id[1] = 'M';
@@ -81,12 +81,36 @@ public:
 		bhdr.colors = ( pixel_size == 1 ) ? 256 : 0;
 		bhdr.importantColors = 0;
 	
+		fileAllocated = false;
 		data = new byte[bhdr.fileSize];
 		memcpy( data, &bhdr, sizeof( bhdr ));
 		memset( data + bhdr.bitmapDataOffset, 0, bhdr.bitmapDataSize );
 	}
+
+	CBMP( const bmp_t *header, uint img_sz )
+	{
+		data = new byte[ header->bitmapDataOffset + img_sz ];
+		fileAllocated = false;
+
+		// copy the header and palette
+		memcpy( data, header, header->bitmapDataOffset );
+
+		// fixup
+		bmp_t *hdr = GetBitmapHdr();
+		hdr->bitmapDataSize = img_sz;
+		hdr->fileSize = hdr->bitmapDataOffset + hdr->bitmapDataSize;
+	}
 	
-	~CBMP() { if( data ) delete []data; }
+	~CBMP()
+	{
+		if( data )
+		{
+			if( fileAllocated )
+				EngFuncs::COM_FreeFile( data );
+			else
+				delete []data;
+		}
+	}
 
 	void Increase(uint w, uint h)
 	{
@@ -169,10 +193,32 @@ public:
 	inline rgbquad_t *GetPaletteData()
 	{
 		// palette is always right after header
-		return (rgbquad_t*)(data + sizeof( bmp_t ));
+		return (rgbquad_t*)(data + GetBitmapHdr()->bitmapHeaderSize);
 	}
 
+	inline size_t GetPaletteSize()
+	{
+		bmp_t *hdr = GetBitmapHdr();
+
+		if( hdr->bitsPerPixel > 8 )
+			return 0;
+
+		if( hdr->colors == 0 )
+		{
+			// silently fixup hdr WTF?
+			hdr->colors = 256;
+			return ( 1 << hdr->bitsPerPixel ) * sizeof( rgbquad_t );
+		}
+
+		return hdr->colors * sizeof( rgbquad_t );
+	}
 
 private:
-	byte    *data;
+	CBMP( bmp_t *data ) :
+		fileAllocated( true ), data( (byte*)data )
+	{
+	}
+
+	bool fileAllocated;
+	byte *data;
 };

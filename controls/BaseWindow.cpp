@@ -58,18 +58,18 @@ void CMenuBaseWindow::Show()
 		break;
 	}
 #endif
-	EnableTransition( ANIM_IN );
+	EnableTransition( ANIM_OPENING );
 }
 
 void CMenuBaseWindow::Hide()
 {
 	if( m_pStack == &uiStatic.menu ) // hack!
 	{
-		EngFuncs::PlayLocalSound( uiSoundOut );
+		EngFuncs::PlayLocalSound( uiStatic.sounds[SND_OUT] );
 	}
 
 	m_pStack->Remove( this );
-	EnableTransition( ANIM_OUT );
+	EnableTransition( ANIM_CLOSING );
 }
 
 bool CMenuBaseWindow::IsVisible() const
@@ -92,13 +92,13 @@ void CMenuBaseWindow::DragDrop( int down )
 
 bool CMenuBaseWindow::KeyDown( int key )
 {
-	if( key == K_MOUSE1 && bAllowDrag )
+	if( UI::Key::IsLeftMouse( key ) && bAllowDrag )
 		DragDrop( true );
 
 	if( UI::Key::IsEscape( key ) )
 	{
 		Hide( );
-		PlayLocalSound( uiSoundOut );
+		PlayLocalSound( uiStatic.sounds[SND_OUT] );
 		return true;
 	}
 
@@ -107,7 +107,7 @@ bool CMenuBaseWindow::KeyDown( int key )
 
 bool CMenuBaseWindow::KeyUp( int key )
 {
-	if( key == K_MOUSE1 && bAllowDrag )
+	if( UI::Key::IsLeftMouse( key ) && bAllowDrag )
 		DragDrop( false );
 
 	return BaseClass::KeyUp( key );
@@ -133,17 +133,17 @@ bool CMenuBaseWindow::DrawAnimation()
 {
 	float alpha;
 
-	if( eTransitionType == ANIM_IN )
+	if( eTransitionType == ANIM_OPENING )
 	{
 		alpha = ( uiStatic.realTime - m_iTransitionStartTime ) / TTT_PERIOD;
 	}
-	else if( eTransitionType == ANIM_OUT )
+	else if( eTransitionType == ANIM_CLOSING )
 	{
 		alpha = 1.0f - ( uiStatic.realTime - m_iTransitionStartTime ) / TTT_PERIOD;
 	}
 
-	if(        ( eTransitionType == ANIM_IN  && alpha < 1.0f )
-		|| ( eTransitionType == ANIM_OUT && alpha > 0.0f ) )
+	if(        ( eTransitionType == ANIM_OPENING  && alpha < 1.0f )
+		|| ( eTransitionType == ANIM_CLOSING && alpha > 0.0f ) )
 	{
 		UI_EnableAlphaFactor( alpha );
 

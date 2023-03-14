@@ -46,9 +46,9 @@ bool CMenuBitmap::KeyUp( int key )
 	const char *sound = 0;
 
 	if( UI::Key::IsEnter( key ) && !(iFlags & QMF_MOUSEONLY) )
-		sound = uiSoundLaunch;
+		sound = uiStatic.sounds[SND_LAUNCH];
 	else if( UI::Key::IsLeftMouse( key ) && ( iFlags & QMF_HASMOUSEFOCUS ) )
-		sound = uiSoundLaunch;
+		sound = uiStatic.sounds[SND_LAUNCH];
 
 	if( sound )
 	{
@@ -127,52 +127,4 @@ void CMenuBitmap::Draw( void )
 		UI_DrawPic( m_scPos, m_scSize, colorBase, szPic, eRenderMode ); // ignore focus
 		break;
 	}
-}
-
-void CMenuBannerBitmap::Draw()
-{
-#ifdef CS16CLIENT
-	const char *text = CMenuPicButton::GetLastButtonText();
-
-	if( !text )
-		return;
-
-	UI_DrawString( uiStatic.hBigFont, m_scPos, m_scSize, text, uiPromptTextColor, m_scChSize, QM_LEFT, ETF_SHADOW | ETF_NOSIZELIMIT );
-#else
-	// don't draw banners until transition is done
-#ifdef TA_ALT_MODE
-	return;
-#endif
-	CMenuBaseWindow *window = NULL;
-
-	if( m_pParent->IsWindow() )
-		window = (CMenuBaseWindow*) m_pParent;
-
-	if( CMenuPicButton::GetTitleTransFraction() < 1.0f )
-		return;
-
-	if( window && window->IsRoot() && window->eTransitionType == CMenuBaseWindow::ANIM_OUT )
-		return;
-
-	BaseClass::Draw();
-#endif
-}
-
-void CMenuBannerBitmap::VidInit()
-{
-	BaseClass::VidInit();
-#ifndef CS16CLIENT
-	if( !szPic )
-		return;
-
-	Size sz = EngFuncs::PIC_Size( szPic );
-	float factor = (float)m_scSize.h / (float)sz.h;
-	m_scSize.w = sz.w * factor;
-
-	// CMenuPicButton::SetTitleAnim( CMenuPicButton::AS_TO_TITLE );
-	CMenuPicButton::SetupTitleQuadForLast( uiStatic.xOffset + pos.x, uiStatic.yOffset + pos.y, m_scSize.w, m_scSize.h );
-#if defined(TA_ALT_MODE2) && !defined(TA_ALT_MODE)
-	CMenuPicButton::SetTransPicForLast( szPic );
-#endif
-#endif // CS16CLIENT
 }

@@ -77,6 +77,21 @@ extern cvar_t   *ui_show_window_stack;
 extern cvar_t	*ui_borderclip;
 extern cvar_t	*ui_language;
 
+enum EUISounds
+{
+	SND_IN = 0,
+	SND_OUT,
+	SND_LAUNCH,
+	SND_ROLLOVER,
+	SND_GLOW,
+	SND_BUZZ,
+	SND_KEY,
+	SND_REMOVEKEY,
+	SND_MOVE,
+	SND_NULL,
+	SND_COUNT
+};
+
 typedef struct
 {
 	CWindowStack menu;
@@ -91,10 +106,9 @@ typedef struct
 	HFont hBigFont;
 	HFont hConsoleFont;
 	HFont hBoldFont;
-#ifdef MAINUI_RENDER_PICBUTTON_TEXT
 	HFont hLightBlur;
 	HFont hHeavyBlur;
-#endif
+
 	bool	m_fDemosPlayed;
 	bool	m_fNoOldBackground;
 	int 	m_iOldMenuDepth;
@@ -116,11 +130,11 @@ typedef struct
 	// btns_main.bmp stuff
 	HIMAGE	buttonsPics[PC_BUTTONCOUNT];
 
-	int		buttons_width;	// btns_main.bmp global width
-	int		buttons_height;	// per one button with all states (inactive, focus, pressed)
+	int		buttons_width; // btns_main.bmp global width
+	int		buttons_height; // one button height
+	int		buttons_points[3];
 
-	int		buttons_draw_width;	// scaled image what we drawing
-	int		buttons_draw_height;
+	Size		buttons_draw_size; // scaled image what we drawing
 	int		width;
 	bool	textInput;
 	bool	enableAlphaFactor;
@@ -128,27 +142,19 @@ typedef struct
 	int xOffset, yOffset;
 
 	bool needMapListUpdate;
-
 	bool nextFrameActive;
+	bool renderPicbuttonText;
+
+	int lowmemory;
+
+	char sounds[SND_COUNT][40];
 } uiStatic_t;
 
 extern float	cursorDY;			// use for touch scroll
 extern bool g_bCursorDown;
-extern bool g_bIsForkedEngine;
 extern uiStatic_t		uiStatic;
 
 #define DLG_X ((uiStatic.width - 640) / 2 - 192) // Dialogs are 640px in width
-
-extern const char		*uiSoundIn;
-extern const char		*uiSoundRollOver;
-extern const char		*uiSoundOut;
-extern const char		*uiSoundKey;
-extern const char		*uiSoundRemoveKey;
-extern const char		*uiSoundLaunch;
-extern const char		*uiSoundBuzz;
-extern const char		*uiSoundGlow;
-extern const char		*uiSoundMove;
-extern const char		*uiSoundNull;
 
 extern unsigned int	uiColorHelp;
 extern unsigned int	uiPromptBgColor;
@@ -162,8 +168,6 @@ extern unsigned int	uiColorDkGrey;
 extern unsigned int	uiColorBlack;
 
 // TODO: Move it under namespace?
-
-bool UI_IsXashFWGS( void );
 
 void UI_ScaleCoords( int *x, int *y, int *w, int *h );
 void UI_ScaleCoords( int &x, int &y, int &w, int &h );
@@ -229,7 +233,7 @@ inline void UI_DrawRectangleExt( Point pos, Size size, const unsigned int color,
 }
 
 void UI_StartSound( const char *sound );
-void UI_LoadBmpButtons( void );
+void UI_LoadBmpButtons();
 
 int UI_CreditsActive( void );
 void UI_DrawFinalCredits( void );
@@ -256,11 +260,11 @@ public:
 
 #define ADD_MENU3( cmd, type, showfunc ) \
 	static type * cmd = NULL; \
-	void cmd##_Precache( void ) \
+	static void cmd##_Precache( void ) \
 	{ \
 		cmd = new type(); \
 	} \
-	void cmd##_Shutdown( void ) \
+	static void cmd##_Shutdown( void ) \
 	{ \
 		delete cmd; \
 	} \
@@ -315,9 +319,6 @@ void UI_AdvServerOptions_Menu( void );
 void UI_InputDevices_Menu( void );
 
 void UI_OpenUpdatePage(bool engine , bool preferstore);
-
-// time
-double Sys_DoubleTime( void );
 
 //
 //-----------------------------------------------------

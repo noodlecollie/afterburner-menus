@@ -320,8 +320,6 @@ UI_Main_Init
 */
 void CMenuMain::VidInit( bool connected )
 {
-	CMenuPicButton::ClearButtonStack();
-
 	// statically positioned items
 	minimizeBtn.SetRect( uiStatic.width - 72, 13, 32, 32 );
 	quitButton.SetRect( uiStatic.width - 36, 13, 32, 32 );
@@ -330,10 +328,9 @@ void CMenuMain::VidInit( bool connected )
 	newGame.SetCoord( 72, 280 );
 	hazardCourse.SetCoord( 72, 330 );
 
-	bool isGameLoaded = EngFuncs::GetCvarFloat( "host_gameloaded" ) != 0.0f;
 	bool isSingle = gpGlobals->maxClients < 2;
 
-	if( isGameLoaded && isSingle )
+	if( CL_IsActive() && isSingle )
 	{
 		saveRestore.SetNameAndStatus( L( "Save\\Load Game" ), L( "StringsList_192" ) );
 		saveRestore.SetPicture( PC_SAVE_LOAD_GAME );
@@ -349,7 +346,7 @@ void CMenuMain::VidInit( bool connected )
 	if( connected )
 	{
 		resumeGame.Show();
-		if( !isGameLoaded && !isSingle )
+		if( CL_IsActive() && !isSingle )
 		{
 			disconnect.Show();
 			console.pos.y = 130;

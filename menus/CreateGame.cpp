@@ -72,8 +72,6 @@ public:
 	CMenuField	hostName;
 	CMenuField	password;
 	CMenuCheckBox   nat;
-	CMenuCheckBox	hltv;
-	CMenuCheckBox	dedicatedServer;
 
 	// newgame prompt dialog
 	CMenuYesNoMessageBox msgBox;
@@ -126,68 +124,53 @@ void CMenuCreateGame::Begin( CMenuBaseItem *pSelf, void *pExtra )
 	EngFuncs::CvarSetValue( "sv_nat", EngFuncs::GetCvarFloat( "public" ) ? menu->nat.bChecked : 0 );
 	menu->password.WriteCvar();
 	menu->hostName.WriteCvar();
-	menu->hltv.WriteCvar();
 	menu->maxClients.WriteCvar();
 
 	EngFuncs::PlayBackgroundTrack( NULL, NULL );
 
 	// all done, start server
-	if( menu->dedicatedServer.bChecked )
+	EngFuncs::WriteServerConfig( EngFuncs::GetCvarString( "lservercfgfile" ));
+
+	char cmd[1024], cmd2[256];
+	sprintf( cmd, "exec %s\n", EngFuncs::GetCvarString( "lservercfgfile" ) );
+
+	EngFuncs::ClientCmd( TRUE, cmd );
+
+	// dirty listenserver config form old xash may rewrite maxplayers
+	EngFuncs::CvarSetValue( "maxplayers", atoi( menu->maxClients.GetBuffer() ));
+
+	Com_EscapeCommand( cmd2, mapName, 256 );
+
+	// hack: wait three frames allowing server to completely shutdown, reapply maxplayers and start new map
+	sprintf( cmd, "endgame;menu_connectionprogress localserver;wait;wait;wait;maxplayers %i;latch;map %s\n", atoi( menu->maxClients.GetBuffer() ), cmd2 );
+	EngFuncs::ClientCmd( FALSE, cmd );
+
+	CUtlVector<CInGameBotListModel::ListEntry> botList;
+	BotSetup_GetBotsToAddToGame(botList);
+
+	if ( botList.Count() > 0 )
 	{
-		EngFuncs::WriteServerConfig( EngFuncs::GetCvarString( "servercfgfile" ));
+		CUtlString botCmd;
 
-		char cmd[128];
-		sprintf( cmd, "#%s", gMenu.m_gameinfo.gamefolder );
+		// Must wait a frame after invoking the map command, or the bot register will not be initialised.
+		botCmd.Append("wait");
 
-		// NOTE: dedicated server will be executed "defaultmap"
-		// from engine after restarting
-		EngFuncs::ChangeInstance( cmd, "Starting dedicated server...\n" );
-	}
-	else
-	{
-		EngFuncs::WriteServerConfig( EngFuncs::GetCvarString( "lservercfgfile" ));
-
-		char cmd[1024], cmd2[256];
-		sprintf( cmd, "exec %s\n", EngFuncs::GetCvarString( "lservercfgfile" ) );
-
-		EngFuncs::ClientCmd( TRUE, cmd );
-
-		// dirty listenserver config form old xash may rewrite maxplayers
-		EngFuncs::CvarSetValue( "maxplayers", atoi( menu->maxClients.GetBuffer() ));
-
-		Com_EscapeCommand( cmd2, mapName, 256 );
-
-		// hack: wait three frames allowing server to completely shutdown, reapply maxplayers and start new map
-		sprintf( cmd, "endgame;menu_connectionprogress localserver;wait;wait;wait;maxplayers %i;latch;map %s\n", atoi( menu->maxClients.GetBuffer() ), cmd2 );
-		EngFuncs::ClientCmd( FALSE, cmd );
-
-		CUtlVector<CInGameBotListModel::ListEntry> botList;
-		BotSetup_GetBotsToAddToGame(botList);
-
-		if ( botList.Count() > 0 )
+		FOR_EACH_VEC(botList, index)
 		{
-			CUtlString botCmd;
+			const CInGameBotListModel::ListEntry& entry = botList[index];
 
-			// Must wait a frame after invoking the map command, or the bot register will not be initialised.
-			botCmd.Append("wait");
+			CUtlString command;
+			command.AppendFormat("; bot_register_add \"%s\"", entry.profileName.String());
 
-			FOR_EACH_VEC(botList, index)
+			if ( !entry.playerName.IsEmpty() )
 			{
-				const CInGameBotListModel::ListEntry& entry = botList[index];
-
-				CUtlString command;
-				command.AppendFormat("; bot_register_add \"%s\"", entry.profileName.String());
-
-				if ( !entry.playerName.IsEmpty() )
-				{
-					command.AppendFormat(" \"%s\"", entry.playerName.String());
-				}
-
-				botCmd.Append(command.String());
+				command.AppendFormat(" \"%s\"", entry.playerName.String());
 			}
 
-			EngFuncs::ClientCmd(FALSE, botCmd.String());
+			botCmd.Append(command.String());
 		}
+
+		EngFuncs::ClientCmd(FALSE, botCmd.String());
 	}
 }
 
@@ -217,13 +200,13 @@ void CMenuMapListModel::Update( void )
 
 	strcpy( mapName[0], L( "GameUI_RandomMap" ) );
 	mapsDescription[0][0] = 0;
-
-	while(( pfile = EngFuncs::COM_ParseFile( pfile, token )) != NULL )
+	
+	while(( pfile = EngFuncs::COM_ParseFile( pfile, token, sizeof( token ))) != NULL )
 	{
 		if( numMaps >= UI_MAXGAMES ) break;
 
 		Q_strncpy( mapName[numMaps], token, 64 );
-		if(( pfile = EngFuncs::COM_ParseFile( pfile, token )) == NULL )
+		if(( pfile = EngFuncs::COM_ParseFile( pfile, token, sizeof( token ))) == NULL )
 		{
 			Q_strncpy( mapsDescription[numMaps], mapName[numMaps], 64 );
 			break; // unexpected end of file
@@ -250,11 +233,6 @@ void CMenuCreateGame::_Init( void )
 
 	nat.SetNameAndStatus( "NAT", L( "Use NAT Bypass instead of direct mode" ) );
 	nat.bChecked = true;
-
-	dedicatedServer.SetNameAndStatus( L( "Dedicated server" ), L( "faster, but you can't join the server from this machine" ) );
-
-	hltv.SetNameAndStatus( "HLTV", L( "Enable HLTV mode in Multiplayer" ) );
-	hltv.LinkCvar( "hltv" );
 
 	// add them here, so "done" button can be used by mapsListModel::Update
 	AddItem( background );
@@ -318,24 +296,16 @@ void CMenuCreateGame::_Init( void )
 	AddItem( hostName );
 	AddItem( maxClients );
 	AddItem( password );
-#if !(defined(__ANDROID__) || TARGET_OS_IPHONE || defined(__SAILFISH__))
-	AddItem( dedicatedServer );
-#endif
-	// HLTV not yet supported
-	//AddItem( hltv );
 	AddItem( nat );
 	AddItem( mapsList );
 }
 
 void CMenuCreateGame::_VidInit()
 {
-	nat.SetCoord( 72, 585 );
+	nat.SetCoord( 72, 685 );
 	if( !EngFuncs::GetCvarFloat("public") )
 		nat.Hide();
 	else nat.Show();
-
-	hltv.SetCoord( 72, 635 );
-	dedicatedServer.SetCoord( 72, 685 );
 
 	mapsList.SetRect( 590, 230, -20, 465 );
 

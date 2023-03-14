@@ -103,9 +103,6 @@ private:
 		Hide();
 	}
 
-	CMenuBannerBitmap banner;
-
-
 	// redefine key wait dialog
 	class CGrabKeyMessageBox : public CMenuMessageBox
 	{
@@ -126,7 +123,7 @@ void CMenuControls::GetKeyBindings( const char *command, int *twoKeys )
 {
 	twoKeys[0] = twoKeys[1] = -1;
 
-	for( int i = 0, count = 0; i < 256; i++ )
+	for( int i = 0, count = 0; i < MAX_KEYS; i++ )
 	{
 		const char *b = EngFuncs::KEY_GetBinding( i );
 		if( !b ) continue;
@@ -156,7 +153,7 @@ void CMenuControls::UnbindCommand( const char *command )
 
 	l = strlen( command );
 
-	for( i = 0; i < 256; i++ )
+	for( i = 0; i < MAX_KEYS; i++ )
 	{
 		b = EngFuncs::KEY_GetBinding( i );
 		if( !b ) continue;
@@ -185,12 +182,12 @@ void CMenuKeysModel::Update( void )
 	memset( firstKey, 0, sizeof( firstKey ));
 	memset( secondKey, 0, sizeof( secondKey ));
 
-	while(( pfile = EngFuncs::COM_ParseFile( pfile, token )) != NULL )
+	while(( pfile = EngFuncs::COM_ParseFile( pfile, token, sizeof( token ))) != NULL )
 	{
 		if( !stricmp( token, "blank" ))
 		{
 			// separator
-			pfile = EngFuncs::COM_ParseFile( pfile, token );
+			pfile = EngFuncs::COM_ParseFile( pfile, token, sizeof( token ));
 			if( !pfile ) break;	// technically an error
 
 			if( token[0] == '#' )
@@ -209,16 +206,13 @@ void CMenuKeysModel::Update( void )
 			CMenuControls::GetKeyBindings( token, keys );
 			Q_strncpy( keysBind[i], token, sizeof( keysBind[i] ));
 
-			pfile = EngFuncs::COM_ParseFile( pfile, token );
+			pfile = EngFuncs::COM_ParseFile( pfile, token, sizeof( token ));
 			if( !pfile ) break; // technically an error
 
 			if( token[0] == '#' )
 				snprintf( name[i], sizeof( name[i] ), "^6%s^7", L( token ));
 			else
 				snprintf( name[i], sizeof( name[i] ), "^6%s^7", token );
-
-			if( keys[0] == keys[1] )
-				Con_DPrintf( "%i %i\n", keys[0], keys[1]);
 
 			if( keys[0] != -1 )
 			{
@@ -274,14 +268,16 @@ void CMenuControls::ResetKeysList( void )
 		Con_Printf( "UI_Parse_KeysList: kb_act.lst not found\n" );
 		return;
 	}
+	
+	EngFuncs::ClientCmd( TRUE, "unbindall" );
 
-	while(( pfile = EngFuncs::COM_ParseFile( pfile, token )) != NULL )
+	while(( pfile = EngFuncs::COM_ParseFile( pfile, token, sizeof( token ))) != NULL )
 	{
 		char	key[32];
 
 		Q_strncpy( key, token, sizeof( key ));
 
-		pfile = EngFuncs::COM_ParseFile( pfile, token );
+		pfile = EngFuncs::COM_ParseFile( pfile, token, sizeof( token ));
 		if( !pfile ) break;	// technically an error
 
 		char	cmd[4096];
@@ -291,8 +287,6 @@ void CMenuControls::ResetKeysList( void )
 			key[0] = '\\';
 			key[1] = '\0';
 		}
-
-		UnbindCommand( token );
 
 		snprintf( cmd, sizeof( cmd ), "bind \"%s\" \"%s\"\n", key, token );
 		EngFuncs::ClientCmd( TRUE, cmd );
@@ -307,10 +301,11 @@ bool CMenuControls::CGrabKeyMessageBox::KeyUp( int key )
 	CMenuControls *parent = ((CMenuControls*)m_pParent);
 
 	// defining a key
-	if( key == '`' || key == '~' || key == K_ESCAPE )
+	// escape is special, should allow rebind all keys on gamepad
+	if( UI::Key::IsConsole( key ) || key == K_ESCAPE )
 	{
 		Hide();
-		PlayLocalSound( uiSoundBuzz );
+		PlayLocalSound( uiStatic.sounds[SND_BUZZ] );
 		return true;
 	}
 	else
@@ -326,7 +321,7 @@ bool CMenuControls::CGrabKeyMessageBox::KeyUp( int key )
 
 	Hide();
 
-	PlayLocalSound( uiSoundLaunch );
+	PlayLocalSound( uiStatic.sounds[SND_LAUNCH] );
 
 	return true;
 }
@@ -340,14 +335,14 @@ void CMenuControls::UnbindEntry()
 {
 	if( !keysListModel.IsLineUsable( keysList.GetCurrentIndex() ) )
 	{
-		PlayLocalSound( uiSoundBuzz );
+		PlayLocalSound( uiStatic.sounds[SND_BUZZ] );
 		return; // not a key
 	}
 
 	const char *bindName = keysListModel.keysBind[keysList.GetCurrentIndex()];
 
 	UnbindCommand( bindName );
-	PlayLocalSound( uiSoundRemoveKey );
+	PlayLocalSound( uiStatic.sounds[SND_REMOVEKEY] );
 	keysListModel.Update();
 
 	// disabled: left command just unbinded
@@ -358,7 +353,7 @@ void CMenuControls::EnterGrabMode()
 {
 	if( !keysListModel.IsLineUsable( keysList.GetCurrentIndex() ) )
 	{
-		PlayLocalSound( uiSoundBuzz );
+		PlayLocalSound( uiStatic.sounds[SND_BUZZ] );
 		return;
 	}
 
@@ -373,7 +368,7 @@ void CMenuControls::EnterGrabMode()
 
 	msgBox1.Show();
 
-	PlayLocalSound( uiSoundKey );
+	PlayLocalSound( uiStatic.sounds[SND_KEY] );
 }
 
 /*

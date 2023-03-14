@@ -54,10 +54,6 @@ enum EFontSizes
 	QM_SMALLFONT,       // small
 	QM_BIGFONT,         // big
 	QM_BOLDFONT,
-#ifdef MAINUI_RENDER_PICBUTTON_TEXT
-	QM_LIGHTBLUR,
-	QM_HEAVYBLUR
-#endif
 };
 
 class CFontBuilder
@@ -72,6 +68,9 @@ public:
 		m_iFlags = FONT_NONE;
 		m_iBlur = m_iScanlineOffset = m_iOutlineSize = 0;
 		m_hForceHandle = -1;
+
+		m_fScanlineScale = 0.7f;
+		m_fBrighten = 1.0f;
 	}
 
 	CFontBuilder &SetBlurParams( int blur, float brighten = 1.0f )
@@ -115,7 +114,6 @@ private:
 	float m_fBrighten;
 
 	int m_iOutlineSize;
-	int m_iPreferredType;
 
 	int m_iScanlineOffset;
 	float m_fScanlineScale;

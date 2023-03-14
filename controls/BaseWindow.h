@@ -41,8 +41,8 @@ public:
 	enum EAnimation
 	{
 		ANIM_NO = 0,  // no animation
-		ANIM_OUT,     // window closing animation
-		ANIM_IN,      // window showing animation
+		ANIM_CLOSING, // window closing animation
+		ANIM_OPENING, // window showing animation
 	};
 
 	// Override this method to draw custom animations
@@ -53,7 +53,7 @@ public:
 	virtual bool DrawAnimation();
 
 	// Check current window is a root
-	virtual bool IsRoot() { return false; }
+	virtual bool IsRoot() const { return false; }
 
 	// Hide current window and save changes
 	virtual void SaveAndPopMenu();

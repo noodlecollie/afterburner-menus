@@ -37,6 +37,7 @@ CMenuTable::CMenuTable() : BaseClass(),
 	m_pModel( NULL )
 {
 	memset( szHeaderTexts, 0, sizeof(szHeaderTexts) );
+	memset( columns, 0, sizeof(columns) );
 	eFocusAnimation = QM_HIGHLIGHTIFFOCUS;
 	SetCharSize( QM_SMALLFONT );
 	bDrawStroke = true;
@@ -114,6 +115,78 @@ void CMenuTable::VidInit()
 	boxSize.h = m_scSize.h - headerSize.h;
 }
 
+bool CMenuTable::MouseMove( int x, int y )
+{
+	if( !iScrollBarSliding && FBitSet( iFlags, QMF_HASMOUSEFOCUS ))
+	{
+		float step = Step();
+
+		if( UI_CursorInRect( boxPos, boxSize ))
+		{
+			static float ac_y = 0;
+
+			ac_y += cursorDY;
+			cursorDY = 0;
+			if( ac_y > m_scChSize / 2.0f )
+			{
+				iTopItem -= ac_y / m_scChSize - 0.5f;
+				ac_y = 0;
+			}
+			if( ac_y < -m_scChSize / 2.0f )
+			{
+				iTopItem -= ac_y / m_scChSize - 0.5f;
+				ac_y = 0;
+			}
+		}
+		else if( UI_CursorInRect( sbarPos, sbarSize ))
+		{
+			static float ac_y = 0;
+
+			ac_y += cursorDY;
+			cursorDY = 0;
+			if( ac_y < -step )
+			{
+				iTopItem += ac_y / step + 0.5f;
+				ac_y = 0;
+			}
+			if( ac_y > step )
+			{
+				iTopItem += ac_y / step + 0.5f;
+				ac_y = 0;
+			}
+		}
+
+		iTopItem = bound( 0, iTopItem, m_pModel->GetRows() - iNumRows );
+	}
+
+	if( iScrollBarSliding )
+	{
+		int dist = uiStatic.cursorY - sbarPos.y - (sbarSize.h / 2);
+
+		if((((dist / 2) > (m_scChSize / 2)) || ((dist / 2) < (m_scChSize / 2))) && iTopItem <= (m_pModel->GetRows() - iNumRows ) && iTopItem >= 0)
+		{
+			//_Event( QM_CHANGED );
+
+			if((dist / 2) > ( m_scChSize / 2 ) && iTopItem < ( m_pModel->GetRows() - iNumRows - 1 ))
+			{
+				iTopItem++;
+			}
+
+			if((dist / 2) < -(m_scChSize / 2) && iTopItem > 0 )
+			{
+				iTopItem--;
+			}
+		}
+
+		//iTopItem = iCurItem - iNumRows + 1;
+		if( iTopItem < 0 ) iTopItem = 0;
+		if( iTopItem > ( m_pModel->GetRows() - iNumRows - 1 ))
+			iTopItem = m_pModel->GetRows() - iNumRows - 1;
+	}
+
+	return true;
+}
+
 bool CMenuTable::MoveView(int delta )
 {
 	iTopItem += delta;
@@ -173,96 +246,103 @@ void CMenuTable::SetCurrentIndex( int idx )
 	}
 }
 
+float CMenuTable::Step()
+{
+	float step = (m_pModel->GetRows() <= 1 ) ? 1 : (downArrow.y - upArrow.y - arrow.h) / (float)(m_pModel->GetRows() - 1);
+
+	return step;
+}
+
 bool CMenuTable::KeyUp( int key )
 {
 	const char *sound = 0;
 	int i;
 	bool noscroll = false;
+
 	iScrollBarSliding = false;
 
-	switch( key )
+	if( UI::Key::IsLeftMouse( key ))
 	{
-	case K_MOUSE1:
 		noscroll = true; // don't scroll to current when mouse used
 
-		if( !( iFlags & QMF_HASMOUSEFOCUS ) )
-			break;
-
-		// test for arrows
-		if( UI_CursorInRect( upArrow, arrow ) )
+		if( FBitSet( iFlags, QMF_HASMOUSEFOCUS ))
 		{
-			if( MoveView( -5 ) )
-				sound = uiSoundMove;
-			else sound = uiSoundBuzz;
-		}
-		else if( UI_CursorInRect( downArrow, arrow ))
-		{
-			if( MoveView( 5 ) )
-				sound = uiSoundMove;
-			else sound = uiSoundBuzz;
-		}
-		else if( UI_CursorInRect( boxPos, boxSize ))
-		{
-			// test for item select
-			int starty = boxPos.y + iStrokeWidth;
-			int endy = starty + iNumRows * m_scChSize;
-			if( uiStatic.cursorY > starty && uiStatic.cursorY < endy )
+			// test for arrows
+			if( UI_CursorInRect( upArrow, arrow ) )
 			{
-				int offsety = uiStatic.cursorY - starty;
-				int newCur = iTopItem + offsety / m_scChSize;
-
-				if( newCur < m_pModel->GetRows() )
+				if( MoveView( -5 ) )
+					sound = uiStatic.sounds[SND_MOVE];
+				else sound = uiStatic.sounds[SND_BUZZ];
+			}
+			else if( UI_CursorInRect( downArrow, arrow ))
+			{
+				if( MoveView( 5 ) )
+					sound = uiStatic.sounds[SND_MOVE];
+				else sound = uiStatic.sounds[SND_BUZZ];
+			}
+			else if( UI_CursorInRect( boxPos, boxSize ))
+			{
+				// test for item select
+				int starty = boxPos.y + iStrokeWidth;
+				int endy = starty + iNumRows * m_scChSize;
+				if( uiStatic.cursorY > starty && uiStatic.cursorY < endy )
 				{
-					if( newCur == iCurItem )
+					int offsety = uiStatic.cursorY - starty;
+					int newCur = iTopItem + offsety / m_scChSize;
+
+					if( newCur < m_pModel->GetRows() )
 					{
-						if( uiStatic.realTime - m_iLastItemMouseChange < 200 ) // 200 msec to double click
+						if( newCur == iCurItem )
 						{
-							m_pModel->OnActivateEntry( iCurItem );
+							if( uiStatic.realTime - m_iLastItemMouseChange < 200 ) // 200 msec to double click
+							{
+								m_pModel->OnActivateEntry( iCurItem );
+							}
+						}
+						else
+						{
+							iCurItem = newCur;
+							sound = uiStatic.sounds[SND_NULL];
+						}
+
+						m_iLastItemMouseChange = uiStatic.realTime;
+					}
+				}
+			}
+			else if( bAllowSorting && UI_CursorInRect( m_scPos, headerSize ))
+			{
+				Point p = m_scPos;
+				Size sz;
+				sz.h = headerSize.h;
+
+				for( i = 0; i < m_pModel->GetColumns(); i++, p.x += sz.w )
+				{
+					if( columns[i].fStaticWidth )
+						sz.w = columns[i].flWidth * uiStatic.scaleX;
+					else
+						sz.w = ((float)headerSize.w - flFixedSumm) * columns[i].flWidth / flDynamicSumm;
+
+					if( UI_CursorInRect( p, sz ))
+					{
+						if( GetSortingColumn() != i )
+						{
+							SetSortingColumn( i );
+						}
+						else
+						{
+							SwapOrder();
 						}
 					}
-					else
-					{
-						iCurItem = newCur;
-						sound = uiSoundNull;
-					}
-
-					m_iLastItemMouseChange = uiStatic.realTime;
 				}
 			}
 		}
-		else if( bAllowSorting && UI_CursorInRect( m_scPos, headerSize ))
-		{
-			Point p = m_scPos;
-			Size sz;
-			sz.h = headerSize.h;
-
-			for( i = 0; i < m_pModel->GetColumns(); i++, p.x += sz.w )
-			{
-				if( columns[i].fStaticWidth )
-					sz.w = columns[i].flWidth * uiStatic.scaleX;
-				else
-					sz.w = ((float)headerSize.w - flFixedSumm) * columns[i].flWidth / flDynamicSumm;
-
-				if( UI_CursorInRect( p, sz ))
-				{
-					if( GetSortingColumn() != i )
-					{
-						SetSortingColumn( i );
-					}
-					else
-					{
-						SwapOrder();
-					}
-				}
-			}
-		}
-		break;
-	case K_ENTER:
-	case K_AUX1:
-	case K_AUX31:
-	case K_AUX32:
-		m_pModel->OnActivateEntry( iCurItem ); // activate only on release
-		break;
+	}
+	else if( UI::Key::IsEnter( key ))
+	{
+		if( m_pModel->GetRows() )
+			m_pModel->OnActivateEntry( iCurItem ); // activate only on release
+		else
+			sound = uiStatic.sounds[SND_BUZZ]; // list is empty, can't activate anything
 	}
 
 	if( !noscroll )
@@ -279,7 +359,7 @@ bool CMenuTable::KeyUp( int key )
 
 	if( sound )
 	{
-		if( sound != uiSoundBuzz )
+		if( sound != uiStatic.sounds[SND_BUZZ] )
 			_Event( QM_CHANGED );
 
 		PlayLocalSound( sound );
@@ -291,90 +371,48 @@ bool CMenuTable::KeyUp( int key )
 bool CMenuTable::KeyDown( int key )
 {
 	const char *sound = 0;
-	int i;
 	bool noscroll = false;
 
-	switch( key )
+	if( UI::Key::IsUpArrow( key ))
+		sound = MoveCursor( -1 ) ? uiStatic.sounds[SND_MOVE] : 0;
+	else if( UI::Key::IsDownArrow( key ))
+		sound = MoveCursor( 1 ) ? uiStatic.sounds[SND_MOVE] : 0;
+	else if( key == K_MWHEELUP )
+		sound = MoveCursor( -1 ) ? uiStatic.sounds[SND_MOVE] : uiStatic.sounds[SND_BUZZ];
+	else if( key == K_MWHEELDOWN )
+		sound = MoveCursor( 1 ) ? uiStatic.sounds[SND_MOVE] : uiStatic.sounds[SND_BUZZ];
+	else if( UI::Key::IsPageUp( key ))
+		sound = MoveCursor( -2 ) ? uiStatic.sounds[SND_MOVE] : uiStatic.sounds[SND_BUZZ];
+	else if( UI::Key::IsPageDown( key ))
+		sound = MoveCursor( 2 ) ? uiStatic.sounds[SND_MOVE] : uiStatic.sounds[SND_BUZZ];
+	else if( UI::Key::IsHome( key ))
 	{
-	case K_MOUSE1:
+		sound = iCurItem > 0 ? uiStatic.sounds[SND_MOVE] : uiStatic.sounds[SND_BUZZ];
+		iCurItem = 0;
+	}
+	else if( UI::Key::IsEnd( key ))
+	{
+		int lastItem = Q_min( m_pModel->GetRows() - 1, 0 );
+		sound = iCurItem < lastItem ? uiStatic.sounds[SND_MOVE] : uiStatic.sounds[SND_BUZZ];
+		iCurItem = lastItem;
+	}
+	else if( UI::Key::IsDelete( key ))
+	{
+		if( m_pModel->GetRows() )
+			m_pModel->OnDeleteEntry( iCurItem ); // allow removing entries on repeating
+		else
+			sound = uiStatic.sounds[SND_BUZZ];
+	}
+	else if( UI::Key::IsLeftMouse( key ))
 	{
 		noscroll = true; // don't scroll to current when mouse used
 
-		if( !( iFlags & QMF_HASMOUSEFOCUS ) )
-			break;
-
-		// test for arrows
-		if( UI_CursorInRect( upArrow, arrow ) )
+		if( FBitSet( iFlags, QMF_HASMOUSEFOCUS ))
 		{
-		}
-		else if( UI_CursorInRect( downArrow, arrow ))
-		{
-		}
-		else if( UI_CursorInRect( boxPos, boxSize ))
-		{
-		}
-		else if( bAllowSorting && UI_CursorInRect( m_scPos, headerSize ))
-		{
-		}
-		else
-		{
-			// ADAMIX
-			if( UI_CursorInRect( upArrow.x, upArrow.y + arrow.h,
-					arrow.w, sbarPos.y - upArrow.y - arrow.h ) ||
-				UI_CursorInRect( upArrow.x, sbarPos.y + sbarSize.h,
-					arrow.w, downArrow.y - sbarPos.y - sbarSize.h ))
-			{
+			// test for scrollbar
+			if( UI_CursorInRect( sbarPos, sbarSize ))
 				iScrollBarSliding = true;
-			}
-			// ADAMIX END
 		}
-		break;
-	}
-	case K_HOME:
-	case K_KP_HOME:
-		if( iCurItem )
-		{
-			iCurItem = 0;
-			sound = uiSoundMove;
-		}
-		else sound = uiSoundBuzz;
-		break;
-	case K_END:
-	case K_KP_END:
-		if( iCurItem != m_pModel->GetRows() - 1 )
-		{
-			iCurItem = m_pModel->GetRows() - 1;
-			sound = uiSoundMove;
-		}
-		else sound = uiSoundBuzz;
-		break;
-	case K_PGDN:
-	case K_KP_PGDN:
-	case K_R1_BUTTON:
-		sound = MoveCursor( 2 ) ? uiSoundMove : uiSoundBuzz;
-		break;
-	case K_PGUP:
-	case K_KP_PGUP:
-	case K_L1_BUTTON:
-		sound = MoveCursor( -2 ) ? uiSoundMove : uiSoundBuzz;
-		break;
-	case K_UPARROW:
-	case K_KP_UPARROW:
-	case K_DPAD_UP:
-	case K_MWHEELUP:
-		sound = MoveCursor( -1 ) ? uiSoundMove : uiSoundBuzz;
-		break;
-	case K_DOWNARROW:
-	case K_KP_DOWNARROW:
-	case K_DPAD_DOWN:
-	case K_MWHEELDOWN:
-		sound = MoveCursor( 1 ) ? uiSoundMove : uiSoundBuzz;
-		break;
-	case K_BACKSPACE:
-	case K_DEL:
-	case K_AUX30:
-		m_pModel->OnDeleteEntry( iCurItem ); // allow removing entries on repeating
-		break;
 	}
 
 	if( !noscroll )
@@ -391,7 +429,7 @@ bool CMenuTable::KeyDown( int key )
 
 	if( sound )
 	{
-		if( sound != uiSoundBuzz )
+		if( sound != uiStatic.sounds[SND_BUZZ] )
 			_Event( QM_CHANGED );
 
 		PlayLocalSound( sound );
@@ -426,7 +464,7 @@ void CMenuTable::DrawLine( Point p, const char **psz, size_t size, uint textColo
 		else
 			sz.w = ((float)headerSize.w - flFixedSumm) * columns[i].flWidth / flDynamicSumm;
 
-		if( !psz[i] ) // headers may be null, cells too
+		if( !psz[i] || !sz.w ) // headers may be null, cells too
 			continue;
 
 		if( bAllowSorting && i == GetSortingColumn() )
@@ -466,7 +504,7 @@ void CMenuTable::DrawLine( Point p, int line, uint textColor, bool forceCol, uin
 	sz.h = m_scChSize;
 
 	unsigned int newFillColor;
-	bool forceFillColor;
+	bool forceFillColor = false;
 	if( m_pModel->GetLineColor( line, newFillColor, forceFillColor ))
 	{
 		if( !fillColor || forceFillColor )
@@ -630,10 +668,11 @@ void CMenuTable::Draw()
 			UI_DrawRectangleExt( boxPos, boxSize, color, iStrokeWidth );
 	}
 
-	float step = (m_pModel->GetRows() <= 1 ) ? 1 : (downArrow.y - upArrow.y - arrow.h) / (float)(m_pModel->GetRows() - 1);
 
 	sbarPos.x = upArrow.x + arrow.w * 0.125f;
 	sbarSize.w = arrow.w * 0.75f;
+
+	float step = Step();
 
 	if(((downArrow.y - upArrow.y - arrow.h) - (((m_pModel->GetRows()-1)*m_scChSize)/2)) < 2)
 	{
@@ -646,85 +685,15 @@ void CMenuTable::Draw()
 		sbarPos.y = upArrow.y + arrow.h + (((iTopItem) * m_scChSize)/2);
 	}
 
-	if( g_bCursorDown && !iScrollBarSliding && ( iFlags & QMF_HASMOUSEFOCUS ) )
-	{
-		if( UI_CursorInRect( boxPos, boxSize ))
-		{
-			static float ac_y = 0;
-			ac_y += cursorDY;
-			cursorDY = 0;
-			if( ac_y > m_scChSize / 2.0f )
-			{
-				iTopItem -= ac_y/ m_scChSize - 0.5f;
-				if( iTopItem < 0 )
-					iTopItem = 0;
-				ac_y = 0;
-			}
-			if( ac_y < -m_scChSize / 2.0f )
-			{
-				iTopItem -= ac_y/ m_scChSize - 0.5f;
-				if( iTopItem > m_pModel->GetRows() - iNumRows )
-					iTopItem = m_pModel->GetRows() - iNumRows;
-				ac_y = 0;
-			}
-		}
-		else if( UI_CursorInRect( sbarPos, sbarSize ))
-		{
-			static float ac_y = 0;
-			ac_y += cursorDY;
-			cursorDY = 0;
-			if( ac_y < -step )
-			{
-				iTopItem += ac_y / step + 0.5f;
-				if( iTopItem < 0 )
-					iTopItem = 0;
-				ac_y = 0;
-			}
-			if( ac_y > step )
-			{
-				iTopItem += ac_y / step + 0.5f;
-				if( iTopItem > m_pModel->GetRows() - iNumRows )
-					iTopItem = m_pModel->GetRows() - iNumRows;
-				ac_y = 0;
-			}
-		}
-	}
-
 	// draw the arrows base
 	UI_FillRect( upArrow.x, upArrow.y + arrow.h,
 		arrow.w, downArrow.y - upArrow.y - arrow.h, uiInputFgColor );
 
 	// ADAMIX
-
-	if( iScrollBarSliding )
-	{
-		int dist = uiStatic.cursorY - sbarPos.y - (sbarSize.h>>1);
-
-		if((((dist / 2) > (m_scChSize / 2)) || ((dist / 2) < (m_scChSize / 2))) && iTopItem <= (m_pModel->GetRows() - iNumRows ) && iTopItem >= 0)
-		{
-			//_Event( QM_CHANGED );
-
-			if((dist / 2) > ( m_scChSize / 2 ) && iTopItem < ( m_pModel->GetRows() - iNumRows - 1 ))
-			{
-				iTopItem++;
-			}
-
-			if((dist / 2) < -(m_scChSize / 2) && iTopItem > 0 )
-			{
-				iTopItem--;
-			}
-		}
-
-		//iTopItem = iCurItem - iNumRows + 1;
-		if( iTopItem < 0 ) iTopItem = 0;
-		if( iTopItem > ( m_pModel->GetRows() - iNumRows - 1 ))
-			iTopItem = m_pModel->GetRows() - iNumRows - 1;
-	}
-
 	if( iScrollBarSliding )
 	{
 		// Draw scrollbar background
-		UI_FillRect ( sbarPos.x, upArrow.y + arrow.h, sbarSize.w, downArrow.y - upArrow.y - arrow.h, uiColorBlack);
+		UI_FillRect( sbarPos.x, upArrow.y + arrow.h, sbarSize.w, downArrow.y - upArrow.y - arrow.h, uiColorBlack);
 	}
 
 	// ADAMIX END

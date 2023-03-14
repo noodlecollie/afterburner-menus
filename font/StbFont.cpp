@@ -38,9 +38,8 @@ GNU General Public License for more details.
 #include "Utils.h"
 
 CStbFont::CStbFont() : CBaseFont(),
-	m_ABCCache(0, 0), m_szRealFontFile(), m_pFontData( NULL )
+	m_szRealFontFile(), m_pFontData( NULL )
 {
-	SetDefLessFunc( m_ABCCache );
 }
 
 CStbFont::~CStbFont()
@@ -135,7 +134,7 @@ bool CStbFont::FindFontDataFile(const char *name, int tall, int weight, int flag
 
 	if( (fp = popen( cmd, "r") ) == NULL )
 	{
-		Con_DPrintf( "fontconfig: Error opening pipe!\n" );
+		Con_Printf( "fontconfig: Error opening pipe!\n" );
 		return false;
 	}
 
@@ -143,11 +142,9 @@ bool CStbFont::FindFontDataFile(const char *name, int tall, int weight, int flag
 
 	if( pclose(fp) )
 	{
-		Con_DPrintf( "fontconfig: Command not found or exited with error status\n" );
+		Con_Printf( "fontconfig: Command not found or exited with error status\n" );
         return false;
     }
-
-	Con_DPrintf( "fontconfig: %s -> %s\n", name, dataFile );
 
 	// fallback with empty fontname if font not found
 	if( strlen( dataFile ) < 2 )
@@ -250,17 +247,17 @@ bool CStbFont::Create(const char *name, int tall, int weight, int blur, float br
 
 	if( !FindFontDataFile( name, tall, weight, flags, m_szRealFontFile, 4096 ) )
 	{
-		Con_DPrintf( "Unable to find font named %s\n", name );
+		Con_Printf( "Unable to find font named %s\n", name );
 		m_szName[0] = 0;
 		return false;
 	}
 
 
 	// EngFuncs::COM_LoadFile does not allow open files from /
-	FILE *fd = fopen( m_szRealFontFile, "r" );
+	FILE *fd = fopen( m_szRealFontFile, "rb" );
 	if( !fd )
 	{
-		Con_DPrintf( "Unable to open font %s!\n", m_szRealFontFile );
+		Con_Printf( "Unable to open font %s!\n", m_szRealFontFile );
 		return false;
 	}
 
@@ -273,13 +270,13 @@ bool CStbFont::Create(const char *name, int tall, int weight, int blur, float br
 	fclose( fd );
 	if( red != len )
 	{
-		Con_DPrintf( "Unable to read font file %s!\n", m_szRealFontFile );
+		Con_Printf( "Unable to read font file %s!\n", m_szRealFontFile );
 		return false;
 	}
 
 	if( !stbtt_InitFont( &m_fontInfo, m_pFontData, 0 ) )
 	{
-		Con_DPrintf( "Unable to create font %s!\n", m_szRealFontFile );
+		Con_Printf( "Unable to create font %s!\n", m_szRealFontFile );
 		m_szName[0] = 0;
 		return false;
 	}
@@ -361,22 +358,8 @@ void CStbFont::GetCharRGBA(int ch, Point pt, Size sz, unsigned char *rgba, Size 
 	ApplyStrikeout( sz, rgba );
 }
 
-void CStbFont::GetCharABCWidths(int ch, int &a, int &b, int &c)
+void CStbFont::GetCharABCWidthsNoCache(int ch, int &a, int &b, int &c)
 {
-	abc_t find;
-	find.ch = ch;
-
-	unsigned short i = m_ABCCache.Find( find );
-	if( i != 65535 && m_ABCCache.IsValidIndex(i) )
-	{
-		a = m_ABCCache[i].a;
-		b = m_ABCCache[i].b;
-		c = m_ABCCache[i].c;
-		return;
-	}
-
-	// not found in cache
-
 	int glyphId = stbtt_FindGlyphIndex( &m_fontInfo, ch );
 
 	int x0, x1;
@@ -386,32 +369,14 @@ void CStbFont::GetCharABCWidths(int ch, int &a, int &b, int &c)
 	stbtt_GetCodepointHMetrics( &m_fontInfo, ch, &horiAdvance, &horiBearingX );
 	width = x1 - x0;
 
-	find.a = horiBearingX * scale;
-	find.b = width * scale;
-	find.c = (horiAdvance - horiBearingX - width) * scale;
-	
-	find.a -= m_iBlur + m_iOutlineSize;
-	find.b += m_iBlur + m_iOutlineSize;
+	a = horiBearingX * scale;
 
 	// HACKHACK: stbtt does not support hinting,
 	// so we add 1 pixel margin here and stbtt
 	// won't look bad on too small screen resolutions
-	find.b += 1;
+	b = width * scale + 1;
 
-	if( m_iOutlineSize )
-	{
-		if( find.a < 0 )
-			find.a += m_iOutlineSize;
-
-		if( find.c < 0 )
-			find.c += m_iOutlineSize;
-	}
-
-	a = find.a;
-	b = find.b;
-	c = find.c;
-
-	m_ABCCache.Insert(find);
+	c = (horiAdvance - horiBearingX - width) * scale;
 }
 
 bool CStbFont::HasChar(int ch) const

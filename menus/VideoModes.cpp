@@ -118,14 +118,7 @@ void CMenuVidModes::SetMode( int mode )
 	// vid_setmode is a new command, which does not depends on 
 	// static resolution list but instead uses dynamic resolution
 	// list provided by video backend
-	if( UI_IsXashFWGS( ) )
-	{
-		snprintf( cmd, sizeof( cmd ), "vid_setmode %i\n", mode );
-	}
-	else
-	{
-		snprintf( cmd, sizeof( cmd ), "vid_mode %i\n", mode );
-	}
+	snprintf( cmd, sizeof( cmd ), "vid_setmode %i\n", mode );
 
 	EngFuncs::ClientCmd( TRUE, cmd );
 }
@@ -193,14 +186,7 @@ void CMenuVidModes::RevertChanges()
 		fullscreenChanged = true;
 	}
 
-	if( UI_IsXashFWGS( ) )
-	{
-		SetMode( prevModeX, prevModeY );
-	}
-	else
-	{
-		SetMode( prevMode );
-	}
+	SetMode( prevModeX, prevModeY );
 
 	// otherwise, we better to set window size at first, then switch TO fullscreen
 	if( !fullscreenChanged )

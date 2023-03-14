@@ -142,7 +142,7 @@ bool CMenuField::KeyDown( int key )
 	bool handled = false;
 
 	// clipboard paste
-	if((( key == K_INS ) || ( key == K_KP_INS )) && EngFuncs::KEY_IsDown( K_SHIFT ))
+	if( UI::Key::IsInsert( key ) && EngFuncs::KEY_IsDown( K_SHIFT ))
 	{
 		Paste();
 		handled = true;
@@ -150,19 +150,17 @@ bool CMenuField::KeyDown( int key )
 	else
 	{
 		int len = strlen( szBuffer );
-		switch( key )
+		handled = true; // predict state
+		if( UI::Key::IsInsert( key ))
 		{
-		case K_INS:
-			// toggle overstrike mode
 			EngFuncs::KEY_SetOverstrike( !EngFuncs::KEY_GetOverstrike( ));
-			handled = true; // handled
-			break;
-		case K_LEFTARROW:
+		}
+		else if( UI::Key::IsLeftArrow( key ))
+		{
 			if( iCursor > 0 ) iCursor = EngFuncs::UtfMoveLeft( szBuffer, iCursor );
 			if( iCursor < iScroll ) iScroll = EngFuncs::UtfMoveLeft( szBuffer, iScroll );
-			handled = true; // handled
-			break;
-		case K_RIGHTARROW:
+		}
+		else if( UI::Key::IsRightArrow( key ))
 		{
 			bool remaining;
 
@@ -170,21 +168,18 @@ bool CMenuField::KeyDown( int key )
 
 			if( iCursor < len ) iCursor = EngFuncs::UtfMoveRight( szBuffer, iCursor, len );
 			if( remaining && iCursor > maxIdx ) iScroll = EngFuncs::UtfMoveRight( szBuffer, iScroll, len );
-
-			handled = true; // handled
-			break;
 		}
-		case K_HOME: // first character
-			iCursor = 0;
-			iScroll = 0;
-			handled = true; // handled
-			break;
-		case K_END: // last character
+		else if( UI::Key::IsHome( key ))
+		{
+			iCursor = iScroll = 0;
+		}
+		else if( UI::Key::IsEnd( key ))
+		{
 			iCursor = len;
 			iScroll = g_FontMgr->CutText( font, szBuffer, m_scChSize, iRealWidth, true );
-			handled = true; // handled
-			break;
-		case K_BACKSPACE:
+		}
+		else if( UI::Key::IsBackspace( key ))
+		{
 			if( iCursor > 0 )
 			{
 				int pos = EngFuncs::UtfMoveLeft( szBuffer, iCursor );
@@ -193,9 +188,9 @@ bool CMenuField::KeyDown( int key )
 				if( iScroll )
 					iScroll = EngFuncs::UtfMoveLeft( szBuffer, iScroll );
 			}
-			handled = true; // handled
-			break;
-		case K_DEL:
+		}
+		else if( UI::Key::IsDelete( key, true ))
+		{
 			if( iCursor < len )
 			{
 				int pos = EngFuncs::UtfMoveRight( szBuffer, iCursor, len );
@@ -203,9 +198,8 @@ bool CMenuField::KeyDown( int key )
 
 				iScroll = g_FontMgr->CutText( font, szBuffer, m_scChSize, iRealWidth, true );
 			}
-			handled = true; // handled
-			break;
-		case K_MOUSE1:
+		}
+		else if( UI::Key::IsLeftMouse( key ))
 		{
 			float y = m_scPos.y;
 
@@ -258,10 +252,8 @@ bool CMenuField::KeyDown( int key )
 				if( iCursor > len )
 					iCursor = len;
 			}
-			handled = true; // handled
-			break;
 		}
-		}
+		else handled = false;
 	}
 
 	if( handled )

@@ -27,9 +27,9 @@ FT_Library CFreeTypeFont::m_Library;
 
 
 CFreeTypeFont::CFreeTypeFont() : CBaseFont(),
-	m_ABCCache(0, 0), face(), m_szRealFontFile()
+	face(), m_szRealFontFile()
 {
-	SetDefLessFunc( m_ABCCache );
+
 }
 
 CFreeTypeFont::~CFreeTypeFont()
@@ -47,22 +47,24 @@ CFreeTypeFont::~CFreeTypeFont()
  *
  * Ripped from skia source code
  */
-FcPattern* FontMatch(const char* type, FcType vtype, const void* value, ...)
+static FcPattern* FontMatch(const char* type, ...)
 {
+	FcValue fcvalue;
 	va_list ap;
-	va_start(ap, value);
+
+	va_start(ap, type);
 
 	FcPattern* pattern = FcPatternCreate();
 
 	for (;;) {
-		FcValue fcvalue;
-		fcvalue.type = vtype;
-		switch (vtype) {
+		// FcType is promoted to int when passed through ...
+		fcvalue.type = static_cast<FcType>(va_arg(ap, int));
+		switch (fcvalue.type) {
 			case FcTypeString:
-				fcvalue.u.s = (FcChar8*) value;
+				fcvalue.u.s = va_arg(ap, const FcChar8 *);
 				break;
 			case FcTypeInteger:
-				fcvalue.u.i = (int)(intptr_t)value;
+				fcvalue.u.i = va_arg(ap, int);
 				break;
 			default:
 				ASSERT(("FontMatch unhandled type"));
@@ -72,9 +74,6 @@ FcPattern* FontMatch(const char* type, FcType vtype, const void* value, ...)
 		type = va_arg(ap, const char *);
 		if (!type)
 			break;
-		// FcType is promoted to int when passed through ...
-		vtype = static_cast<FcType>(va_arg(ap, int));
-		value = va_arg(ap, const void *);
 	};
 	va_end(ap);
 
@@ -119,8 +118,6 @@ bool CFreeTypeFont::FindFontDataFile( const char *name, int tall, int weight, in
 	}
 	else bRet = false;
 
-	Con_DPrintf( "fontconfig: %s -> %s\n", name, dataFile );
-
 	FcPatternDestroy( pattern );
 	return bRet;
 }
@@ -140,10 +137,9 @@ bool CFreeTypeFont::Create(const char *name, int tall, int weight, int blur, flo
 	m_iScanlineOffset = scanlineOffset;
 	m_fScanlineScale = scanlineScale;
 
-
 	if( !FindFontDataFile( name, tall, weight, flags, m_szRealFontFile, sizeof( m_szRealFontFile ) ) )
 	{
-		Con_DPrintf( "Unable to find font named %s\n", name );
+		Con_Printf( "Unable to find font named %s\n", name );
 		m_szName[0] = 0;
 		return false;
 	}
@@ -173,10 +169,9 @@ void CFreeTypeFont::GetCharRGBA(int ch, Point pt, Size sz, unsigned char *rgba, 
 
 	if( ( error = FT_Load_Glyph( face, idx, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL ) ) )
 	{
-		Con_DPrintf( "Error in FT_Load_Glyph: %x\n", error );
+		Con_Printf( "Error in FT_Load_Glyph: %x\n", error );
 		return;
 	}
-
 
 	slot = face->glyph;
 	buf = slot->bitmap.buffer;
@@ -234,54 +229,22 @@ void CFreeTypeFont::GetCharRGBA(int ch, Point pt, Size sz, unsigned char *rgba, 
 	ApplyStrikeout( sz, rgba );
 }
 
-void CFreeTypeFont::GetCharABCWidths(int ch, int &a, int &b, int &c)
+void CFreeTypeFont::GetCharABCWidthsNoCache(int ch, int &a, int &b, int &c)
 {
-	abc_t find;
-	find.ch = ch;
-
-	unsigned short i = m_ABCCache.Find( find );
-	if( i != 65535 && m_ABCCache.IsValidIndex(i) )
-	{
-		a = m_ABCCache[i].a;
-		b = m_ABCCache[i].b;
-		c = m_ABCCache[i].c;
-		return;
-	}
-
-	// not found in cache
-
 	if( FT_Load_Char( face, ch, FT_LOAD_DEFAULT ) )
 	{
-		find.a = 0;
-		find.b = PIXEL(face->bbox.xMax);
-		find.c = 0;
+		a = 0;
+		b = PIXEL(face->bbox.xMax);
+		c = 0;
 	}
 	else
 	{
-		find.a = PIXEL(face->glyph->metrics.horiBearingX);
-		find.b = PIXEL(face->glyph->metrics.width);
-		find.c = PIXEL(face->glyph->metrics.horiAdvance -
+		a = PIXEL(face->glyph->metrics.horiBearingX);
+		b = PIXEL(face->glyph->metrics.width);
+		c = PIXEL(face->glyph->metrics.horiAdvance -
 			 face->glyph->metrics.horiBearingX -
 			 face->glyph->metrics.width);
 	}
-	
-	find.a -= m_iBlur + m_iOutlineSize;
-	find.b += m_iBlur + m_iOutlineSize;
-	
-	if( m_iOutlineSize )
-	{
-		if( find.a < 0 )
-			find.a += m_iOutlineSize;
-
-		if( find.c < 0 )
-			find.c += m_iOutlineSize;
-	}
-
-	a = find.a;
-	b = find.b;
-	c = find.c;
-
-	m_ABCCache.Insert(find);
 }
 
 bool CFreeTypeFont::HasChar(int ch) const
