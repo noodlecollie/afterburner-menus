@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "PlayerModelView.h"
 #include "StringArrayModel.h"
 #include "StringVectorModel.h"
+#include "common/com_strings.h"
 
 #define ART_BANNER		"gfx/shell/head_customize"
 
@@ -183,12 +184,12 @@ void CMenuPlayerSetup::CModelListModel::Update( void )
 	{
 		COM_FileBase( filenames[i], name );
 		Q_strncpy( models[m_iCount], name, sizeof( models[0] ) );
-		
+
 		// check if the path is a valid model
 		snprintf( name, sizeof( name ), "models/player/%s/%s.mdl", models[m_iCount], models[m_iCount] );
 		if( !EngFuncs::FileExists( name ) )
 			continue;
-		
+
 		m_iCount++;
 	}
 }
